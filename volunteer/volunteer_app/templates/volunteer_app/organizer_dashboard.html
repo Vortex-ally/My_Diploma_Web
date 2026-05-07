@@ -1,0 +1,1606 @@
+{% load static %}
+
+<!doctype html>
+<html lang="uk">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Панель Організатора - BoscoVolunteer</title>
+  <link rel="stylesheet" href="{% static 'volunteer_app/auth.css' %}" />
+  <link rel="stylesheet" href="{% static 'volunteer_app/dashboard.css' %}" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    .event-card-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .btn-sm {
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      text-decoration: none;
+    }
+
+    .btn-sm:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      filter: brightness(1.1);
+    }
+
+    .btn-edit {
+      background: #4f46e5;
+      color: white;
+    }
+
+    .btn-delete {
+      background: #ef4444;
+      color: white;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background-color: white;
+      padding: 30px;
+      border-radius: 15px;
+      width: 560px;
+      max-width: 94%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .create-btn-area {
+      margin-bottom: 20px;
+      text-align: right;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+      background: #fafafa;
+    }
+
+    .form-control:focus {
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
+      background: white;
+    }
+
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #f3f4f6;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .modal-close-btn {
+      background: #f3f4f6;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      font-size: 18px;
+      cursor: pointer;
+      color: #6b7280;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    .modal-close-btn:hover {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    /* Tab Styles */
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .nav-links a {
+      cursor: pointer;
+    }
+
+    /* Calendar Styles */
+    .calendar-controls {
+      display: flex;
+      align-items: center;
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 8px 16px;
+      border-radius: 12px;
+    }
+
+    .calendar-controls span {
+      min-width: 140px;
+      text-align: center;
+      font-size: 16px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .calendar-controls .btn-sm {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .calendar-controls .btn-sm:hover {
+      background: var(--primary-color);
+      border-color: var(--primary-color);
+    }
+
+    .calendar-container {
+      background: var(--glass-card);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--glass-border);
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 10px;
+    }
+
+    .calendar-day-head {
+      font-weight: bold;
+      text-align: center;
+      padding: 10px;
+      color: rgba(255,255,255,0.55);
+    }
+
+    .calendar-day {
+      min-height: 100px;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 5px;
+      cursor: pointer;
+      transition: background 0.2s;
+      color: rgba(255,255,255,0.88);
+    }
+
+    .calendar-day:hover {
+      background: rgba(255,255,255,0.08);
+    }
+
+    .calendar-day.today {
+      border-color: var(--primary-color);
+      background: rgba(79,70,229,0.2);
+    }
+
+    .event-tag {
+      background: var(--primary-color);
+      color: white;
+      font-size: 11px;
+      padding: 2px 5px;
+      border-radius: 4px;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .quick-hour-btn {
+      padding: 8px 4px;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      background: #f9fafb;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: #374151;
+    }
+
+    .quick-hour-btn:hover {
+      background: #d1fae5;
+      border-color: #10b981;
+      color: #065f46;
+    }
+
+    .quick-hour-btn.active {
+      background: #10b981;
+      border-color: #10b981;
+      color: white;
+    }
+
+    /* Alert styles */
+    .alert {
+      padding: 15px;
+      margin-bottom: 20px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+    }
+
+    .alert-success {
+      background-color: #d1fae5;
+      color: #065f46;
+      border-color: #a7f3d0;
+    }
+
+    .alert-error,
+    .alert-danger {
+      background-color: #fee2e2;
+      color: #991b1b;
+      border-color: #fecaca;
+    }
+
+    .alert-info,
+    .alert-warning {
+      background-color: #e0e7ff;
+      color: #3730a3;
+      border-color: #c7d2fe;
+    }
+
+    .report-chip {
+      padding: 6px 14px;
+      border: 1.5px solid #fca5a5;
+      border-radius: 20px;
+      background: white;
+      font-size: 13px;
+      font-weight: 600;
+      color: #ef4444;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .report-chip:hover {
+      background: #fee2e2;
+      border-color: #ef4444;
+    }
+
+    .report-chip.active {
+      background: #ef4444;
+      border-color: #ef4444;
+      color: white;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .app-toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      z-index: 99999;
+      padding: 14px 22px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      color: white;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+      animation: slideUp 0.3s ease;
+      max-width: 380px;
+      pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar" style="z-index: 10000;">
+    <div class="logo">
+      <i class="fas fa-hand-holding-heart"></i>
+      <span>{% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}
+        <small style="font-size: 10px; display: block; margin-top: -5px">ОРГАНІЗАТОР</small></span>
+    </div>
+    <ul class="nav-links">
+      <li>
+        <a href="#" class="nav-tab active" data-tab="events" id="nav-events"><i class="fas fa-calendar-check"></i> Мої
+          Події</a>
+      </li>
+      <li>
+        <a href="#" class="nav-tab" data-tab="schedule" id="nav-schedule"><i class="fas fa-calendar-alt"></i> Розклад</a>
+      </li>
+      <li>
+        <a href="#" class="nav-tab" data-tab="applicants" id="nav-applicants"><i class="fas fa-users-cog"></i> Заявки</a>
+      </li>
+      <li>
+        <a href="{% url 'chat' %}"><i class="fas fa-comments"></i> Чат</a>
+      </li>
+      <li>
+        <a href="{% url 'events' %}"><i class="fas fa-calendar"></i> Всі події</a>
+      </li>
+      <li>
+        <a href="{% url 'organization_list' %}"><i class="fas fa-building"></i> Спільноти</a>
+      </li>
+      <li>
+        {% if has_analytics %}
+          <a href="{% url 'analytics' %}" style="color:#f59e0b"><i class="fas fa-chart-line"></i> Аналітика</a>
+        {% else %}
+          <a href="{% url 'purchase_plan' 'analytics' %}" style="color:#f59e0b">
+            <i class="fas fa-chart-line"></i> Аналітика <span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;margin-left:4px;">$10</span>
+          </a>
+        {% endif %}
+      </li>
+      <li>
+        {% if has_premium %}
+          <span style="color:#a78bfa;padding:8px 15px;display:block"><i class="fas fa-crown"></i> Преміум ✓</span>
+        {% else %}
+          <a href="{% url 'purchase_plan' 'premium' %}" style="color:#a78bfa">
+            <i class="fas fa-crown"></i> Преміум <span style="font-size:10px;background:#ede9fe;color:#5b21b6;padding:1px 6px;border-radius:4px;margin-left:4px;">$20</span>
+          </a>
+        {% endif %}
+      </li>
+      <li style="margin-top: 50px">
+        <a href="{% url 'logout' %}" style="color: #ef4444"><i class="fas fa-sign-out-alt"></i> Вихід</a>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Menu">
+          <i class="fas fa-bars"></i>
+        </button>
+        <div class="brand">
+          <h2>Управління подіями</h2>
+        </div>
+      </div>
+
+      <div class="top-bar-right">
+        <div class="user-card">
+          <div class="avatar" role="button" tabindex="0" aria-label="Відкрити меню" onclick="toggleUserMenu(this)">
+            {% if user.get_full_name %}
+            <img src="https://ui-avatars.com/api/?name={{ user.get_full_name|escapejs }}&background=ec4899&color=fff" alt="{{ user.get_full_name }}" />
+            {% else %}
+            <img src="https://ui-avatars.com/api/?name={{ user.username|escapejs }}&background=ec4899&color=fff" alt="{{ user.username }}" />
+            {% endif %}
+          </div>
+          <div class="user-meta">
+            <div class="user-name">Організатор</div>
+            <div class="user-role">{% if profile %}{{ profile.user.get_full_name|default:user.username }}{% else %}{{ user.username }}{% endif %}</div>
+          </div>
+
+          <div class="user-menu" aria-hidden="true" id="user-menu">
+            <div style="padding: 15px; border-bottom: 1px solid #eee; text-align: center;">
+              <div style="font-weight: 600; color: var(--primary-color);">{% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}</div>
+              <div style="font-size: 12px; color: #666;">{{ user.email }}</div>
+            </div>
+            <a href="{% url 'profile' %}"><i class="fas fa-user"></i> Профіль</a>
+            <a href="{% url 'settings' %}"><i class="fas fa-cog"></i> Налаштування</a>
+            <div class="divider"></div>
+            <form action="{% url 'logout' %}" method="post" style="display: block;">
+              {% csrf_token %}
+              <button type="submit" style="
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                    color: #ef4444;
+                    padding: 8px 15px;
+                    width: 100%;
+                    text-align: left;
+                    font-size: 14px;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                  ">
+                <i class="fas fa-sign-out-alt"></i> Вихід
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    {% if messages %}
+    <div class="messages" style="padding: 0 20px;">
+      {% for message in messages %}
+      <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %}">
+        {{ message }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Events Tab -->
+    <div id="events" class="tab-content active">
+      <div class="create-btn-area">
+        <button class="auth-btn" style="width: auto; padding: 10px 20px" onclick="openCreateModal()">
+          + Створити нову подію
+        </button>
+      </div>
+
+      <div class="cards" id="events-container">
+        <!-- Event cards will be dynamically injected here -->
+      </div>
+    </div>
+
+    <!-- Schedule Tab -->
+    <div id="schedule" class="tab-content">
+      <div class="section-header" style="justify-content: center; flex-direction: column; gap: 15px">
+        <h3>Розклад волонтерства</h3>
+        <div class="calendar-controls">
+          <button class="btn-sm" onclick="prevMonth()">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <span id="current-month-year">Лютий 2026</span>
+          <button class="btn-sm" onclick="nextMonth()">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+        <button class="auth-btn" style="width: auto; padding: 10px 20px" onclick="openCalendarModalForNew()">
+          + Додати волонтерство
+        </button>
+      </div>
+
+      <div class="calendar-container">
+        <div class="calendar-grid" id="calendar-grid">
+          <!-- Day headers -->
+          <div class="calendar-day-head">Пн</div>
+          <div class="calendar-day-head">Вт</div>
+          <div class="calendar-day-head">Ср</div>
+          <div class="calendar-day-head">Чт</div>
+          <div class="calendar-day-head">Пт</div>
+          <div class="calendar-day-head">Сб</div>
+          <div class="calendar-day-head">Нд</div>
+          <!-- Days will be injected here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Applicants Tab -->
+    <div id="applicants" class="tab-content">
+      <div class="recent-grid">
+        <div class="section-header">
+          <h3>Заявки на участь</h3>
+        </div>
+
+        <table id="applicants-table">
+          <thead>
+            <tr>
+              <th>Волонтер</th>
+              <th>Подія</th>
+              <th>Дата заявки</th>
+              <th>Статус</th>
+              <th>Дії</th>
+            </tr>
+          </thead>
+          <tbody id="applicants-table-body">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Report Volunteer Modal -->
+    <div id="report-modal" class="modal">
+      <div class="modal-content" style="max-width:480px;border-top:4px solid #ef4444;">
+        <div class="modal-header">
+          <h3 style="color:#ef4444;display:flex;align-items:center;gap:10px;">
+            <span style="background:#fee2e2;width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="fas fa-flag" style="font-size:15px;"></i>
+            </span>
+            Скарга на волонтера
+          </h3>
+          <button class="modal-close-btn" onclick="closeReportModal()">&times;</button>
+        </div>
+
+        <!-- Volunteer info card -->
+        <div style="display:flex;align-items:center;gap:14px;background:#fef2f2;border:1px solid #fecaca;border-radius:14px;padding:16px;margin-bottom:20px;">
+          <div id="report-avatar" style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#ef4444,#dc2626);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;flex-shrink:0;">?</div>
+          <div>
+            <div id="report-volunteer-name" style="font-weight:700;font-size:16px;color:#991b1b;"></div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Волонтер</div>
+          </div>
+        </div>
+
+        <form id="report-form" action="" method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="request_id" id="report-request-id" value="">
+
+          <!-- Reason label -->
+          <label style="display:flex;align-items:center;gap:6px;font-weight:600;color:#374151;font-size:14px;margin-bottom:10px;">
+            <i class="fas fa-exclamation-triangle" style="color:#ef4444;"></i> Причина скарги
+          </label>
+
+          <!-- Quick reason chips -->
+          <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;" id="report-chips">
+            <button type="button" class="report-chip" onclick="pickChip(this, 'Не з\'явився на захід')">Не з'явився</button>
+            <button type="button" class="report-chip" onclick="pickChip(this, 'Порушив правила поведінки')">Порушив правила</button>
+            <button type="button" class="report-chip" onclick="pickChip(this, 'Неналежне виконання обов\'язків')">Неналежна робота</button>
+            <button type="button" class="report-chip" onclick="pickChip(this, 'Інша причина')">Інше</button>
+          </div>
+
+          <textarea name="report" id="report-textarea" class="form-control" rows="4"
+            placeholder="Детально опишіть проблему з волонтером…" required
+            style="margin-bottom:20px;border-color:#fca5a5;resize:vertical;font-size:14px;line-height:1.6;"
+            onfocus="this.style.borderColor='#ef4444'" onblur="this.style.borderColor='#fca5a5'"></textarea>
+
+          <div style="display:flex;gap:10px;">
+            <button type="button" onclick="closeReportModal()"
+              style="flex:1;padding:12px;border-radius:10px;border:1.5px solid #e5e7eb;background:white;font-size:14px;font-weight:600;cursor:pointer;color:#6b7280;transition:all 0.2s;"
+              onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
+              Скасувати
+            </button>
+            <button type="submit"
+              style="flex:2;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#ef4444,#dc2626);color:white;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(239,68,68,0.35);transition:all 0.2s;"
+              onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 16px rgba(239,68,68,0.45)'"
+              onmouseout="this.style.transform='';this.style.boxShadow='0 4px 12px rgba(239,68,68,0.35)'">
+              <i class="fas fa-paper-plane"></i> Надіслати скаргу
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Approve Volunteer Modal (no hours — just confirm participation) -->
+    <div id="approve-modal" class="modal">
+      <div class="modal-content" style="max-width:420px;border-top:4px solid #10b981;">
+        <div class="modal-header">
+          <h3 style="color:#10b981;display:flex;align-items:center;gap:10px;">
+            <span style="background:#d1fae5;width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="fas fa-user-check" style="font-size:15px;"></i>
+            </span>
+            Схвалити участь
+          </h3>
+          <button class="modal-close-btn" onclick="closeApproveModal()">&times;</button>
+        </div>
+
+        <!-- Volunteer info card -->
+        <div style="display:flex;align-items:center;gap:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;padding:16px;margin-bottom:18px;">
+          <div id="approve-avatar" style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;flex-shrink:0;">?</div>
+          <div>
+            <div id="approve-volunteer-name" style="font-weight:700;font-size:16px;color:#065f46;"></div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Волонтер</div>
+          </div>
+        </div>
+
+        <!-- Info note -->
+        <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:14px;margin-bottom:20px;display:flex;gap:10px;align-items:flex-start;">
+          <i class="fas fa-info-circle" style="color:#059669;margin-top:2px;flex-shrink:0;"></i>
+          <div style="color:#065f46;font-size:14px;line-height:1.5;">
+            Заявка буде схвалена. Години будуть зараховані <strong>після завершення волонтерства</strong> у вкладці «Заявки».
+          </div>
+        </div>
+
+        <input type="hidden" id="approve-request-id" value="" />
+
+        <div style="display:flex;gap:10px;">
+          <button type="button" onclick="closeApproveModal()" style="flex:1;padding:12px;border-radius:10px;border:1.5px solid #e5e7eb;background:white;font-size:14px;font-weight:600;cursor:pointer;color:#6b7280;transition:all 0.2s;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
+            Скасувати
+          </button>
+          <button type="button" onclick="approveVolunteer()" style="flex:2;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#10b981,#059669);color:white;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;box-shadow:0 4px 12px rgba(16,185,129,0.3);" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 16px rgba(16,185,129,0.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 12px rgba(16,185,129,0.3)'">
+            <i class="fas fa-check"></i> Схвалити участь
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Complete Modal — hours after volunteering is done -->
+    <div id="complete-modal" class="modal">
+      <div class="modal-content" style="max-width:460px;border-top:4px solid #6366f1;">
+        <div class="modal-header">
+          <h3 style="color:#6366f1;display:flex;align-items:center;gap:10px;">
+            <span style="background:#eef2ff;width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="fas fa-clock" style="font-size:15px;"></i>
+            </span>
+            Зарахувати години
+          </h3>
+          <button class="modal-close-btn" onclick="closeCompleteModal()">&times;</button>
+        </div>
+
+        <!-- Volunteer info card -->
+        <div style="display:flex;align-items:center;gap:14px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:14px;padding:16px;margin-bottom:20px;">
+          <div id="complete-avatar" style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;flex-shrink:0;">?</div>
+          <div>
+            <div id="complete-volunteer-name" style="font-weight:700;font-size:16px;color:#3730a3;"></div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Зарахування після волонтерства</div>
+          </div>
+        </div>
+
+        <!-- Hours label -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <label style="font-weight:600;color:#374151;display:flex;align-items:center;gap:6px;font-size:14px;">
+            <i class="fas fa-hourglass-half" style="color:#6366f1;"></i> Відпрацьовано годин
+          </label>
+          <span id="complete-hours-display" style="font-weight:700;font-size:18px;color:#6366f1;">4 год</span>
+        </div>
+
+        <!-- Quick select chips -->
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:16px;">
+          <button type="button" class="quick-hour-btn complete-quick" data-val="1" onclick="setCompleteHours(1)">1</button>
+          <button type="button" class="quick-hour-btn complete-quick" data-val="2" onclick="setCompleteHours(2)">2</button>
+          <button type="button" class="quick-hour-btn complete-quick" data-val="3" onclick="setCompleteHours(3)">3</button>
+          <button type="button" class="quick-hour-btn complete-quick" data-val="4" onclick="setCompleteHours(4)">4</button>
+          <button type="button" class="quick-hour-btn complete-quick" data-val="6" onclick="setCompleteHours(6)">6</button>
+          <button type="button" class="quick-hour-btn complete-quick" data-val="8" onclick="setCompleteHours(8)">8</button>
+        </div>
+
+        <!-- Stepper -->
+        <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:22px;">
+          <button type="button" onclick="changeCompleteHours(-1)" style="width:44px;height:44px;border-radius:12px;border:2px solid #e5e7eb;background:white;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;transition:all 0.15s;" onmouseover="this.style.borderColor='#6366f1';this.style.color='#6366f1'" onmouseout="this.style.borderColor='#e5e7eb';this.style.color=''">−</button>
+          <input type="number" id="complete-hours" min="1" value="4" style="width:80px;text-align:center;font-size:28px;font-weight:800;border:2px solid #c7d2fe;border-radius:12px;padding:8px;color:#4338ca;outline:none;" oninput="syncCompleteQuick()" />
+          <button type="button" onclick="changeCompleteHours(1)" style="width:44px;height:44px;border-radius:12px;border:2px solid #e5e7eb;background:white;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;transition:all 0.15s;" onmouseover="this.style.borderColor='#6366f1';this.style.color='#6366f1'" onmouseout="this.style.borderColor='#e5e7eb';this.style.color=''">+</button>
+        </div>
+
+        <input type="hidden" id="complete-request-id" value="" />
+
+        <div style="display:flex;gap:10px;">
+          <button type="button" onclick="closeCompleteModal()" style="flex:1;padding:12px;border-radius:10px;border:1.5px solid #e5e7eb;background:white;font-size:14px;font-weight:600;cursor:pointer;color:#6b7280;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
+            Скасувати
+          </button>
+          <button type="button" onclick="completeVolunteer()" style="flex:2;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(99,102,241,0.3);transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 16px rgba(99,102,241,0.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 12px rgba(99,102,241,0.3)'">
+            <i class="fas fa-check-double"></i> Зарахувати
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Event Modal -->
+  <div id="create-event-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fas fa-plus-circle" style="color:#4f46e5;margin-right:8px;"></i>Створити новий захід</h3>
+        <button class="modal-close-btn" onclick="closeCreateModal()">&times;</button>
+      </div>
+      <form id="create-event-form" action="{% url 'create_project' %}" method="POST">
+        {% csrf_token %}
+        <div class="form-group">
+          <label>Назва заходу</label>
+          <input type="text" name="name" id="event-name" class="form-control" style="margin-bottom: 15px"
+            placeholder="Введіть назву..." required />
+        </div>
+        <div class="form-group">
+          <label>Опис <small style="color:#9ca3af">(необов'язково)</small></label>
+          <textarea name="description" class="form-control" style="margin-bottom: 15px" rows="2" placeholder="Короткий опис заходу..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Місце проведення <small style="color:#9ca3af">(необов'язково)</small></label>
+          <input type="text" name="location" class="form-control" style="margin-bottom: 15px" placeholder="Адреса або аудиторія..." />
+        </div>
+        <div class="form-group">
+          <label>Дата проведення</label>
+          <input type="datetime-local" name="date" id="event-date" class="form-control" style="margin-bottom: 15px"
+            required />
+        </div>
+        <div class="form-group">
+          <label>Години</label>
+          <select id="event-hours-select" class="form-control" style="margin-bottom: 10px" onchange="toggleHoursInput()">
+            <option value="">-- Оберіть або введіть --</option>
+            <option value="2">2 години</option>
+            <option value="4">4 години</option>
+            <option value="6">6 годин</option>
+            <option value="8">8 годин</option>
+            <option value="custom">Інша кількість...</option>
+          </select>
+          <input type="number" name="hours" id="event-hours" class="form-control" style="margin-bottom: 15px"
+            placeholder="Кількість годин..." required />
+        </div>
+        <div class="form-group">
+          <label>Кількість волонтерів</label>
+          <select id="event-max-volunteers-select" class="form-control" style="margin-bottom: 10px" onchange="toggleVolunteersInput()">
+            <option value="0">Без обмежень</option>
+            <option value="1">1 волонтер</option>
+            <option value="2">2 волонтера</option>
+            <option value="3">3 волонтера</option>
+            <option value="5">5 волонтерів</option>
+            <option value="10">10 волонтерів</option>
+            <option value="15">15 волонтерів</option>
+            <option value="20">20 волонтерів</option>
+            <option value="custom">Інша кількість...</option>
+          </select>
+          <input type="number" name="max_volunteers" id="event-max-volunteers" class="form-control" style="margin-bottom: 15px"
+            placeholder="Кількість волонтерів (0 - без обмежень)" min="0" value="0" required />
+        </div>
+        <div class="form-group">
+          <label>Вартість участі ($) <small style="color:#9ca3af">(0 — безкоштовно)</small></label>
+          <input type="number" name="price" class="form-control" style="margin-bottom: 15px"
+            placeholder="0.00" min="0" step="0.01" value="0"/>
+        </div>
+        <div class="form-group">
+          <label>Організація <small style="color:#9ca3af">(необов'язково)</small></label>
+          <select name="organization" class="form-control" style="margin-bottom: 15px">
+            <option value="">— BoscoVolunteer (за замовчуванням) —</option>
+            {% for org in organizations %}
+            <option value="{{ org.id }}">{{ org.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px">
+          <button type="submit" class="auth-btn" style="margin: 0; flex: 1">
+            Створити
+          </button>
+          <button type="button" class="auth-btn btn-delete" style="margin: 0; flex: 1" onclick="closeCreateModal()">
+            Скасувати
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+   <!-- Calendar Event Modal -->
+   <div id="calendar-event-modal" class="modal">
+     <div class="modal-content">
+       <div class="modal-header">
+         <h3><i class="fas fa-calendar-plus" style="color:#4f46e5;margin-right:8px;"></i>Створити волонтерство</h3>
+         <button class="modal-close-btn" onclick="closeCalendarModal()">&times;</button>
+       </div>
+       <div style="background:#f0f4ff;border-radius:8px;padding:10px 14px;margin-bottom:16px;color:#4338ca;font-size:14px;font-weight:500;">
+         <i class="far fa-calendar" style="margin-right:6px;"></i>Дата: <span id="calendar-modal-date"></span>
+       </div>
+       <form id="calendar-event-form" action="{% url 'create_project' %}" method="POST">
+         {% csrf_token %}
+         <input type="datetime-local" name="date" id="calendar-modal-date-input" />
+         <div class="form-group">
+           <label>Назва заходу</label>
+           <input type="text" name="name" id="calendar-event-name" class="form-control" style="margin-bottom: 15px"
+             placeholder="Введіть назву..." required />
+         </div>
+         <div class="form-group">
+           <label>Опис (необов'язково)</label>
+           <textarea name="description" class="form-control" style="margin-bottom: 15px" rows="2" placeholder="Короткий опис..."></textarea>
+         </div>
+         <div class="form-group">
+           <label>Місце проведення (необов'язково)</label>
+           <input type="text" name="location" class="form-control" style="margin-bottom: 15px"
+             placeholder="Адреса або аудиторія..." />
+         </div>
+         <div class="form-group">
+           <label>Години</label>
+           <input type="number" name="hours" id="calendar-event-hours" class="form-control" style="margin-bottom: 15px"
+             placeholder="Кількість годин..." required />
+         </div>
+         <div class="form-group">
+           <label>Потрібно волонтерів</label>
+           <input type="number" name="max_volunteers" id="calendar-event-max-volunteers" class="form-control" style="margin-bottom: 15px"
+             placeholder="Кількість волонтерів (0 - без обмежень)" min="0" value="0" required />
+         </div>
+         <div class="form-group">
+           <label>Вартість участі ($) <small style="color:#9ca3af">(0 — безкоштовно)</small></label>
+           <input type="number" name="price" class="form-control" style="margin-bottom: 15px"
+             placeholder="0.00" min="0" step="0.01" value="0" required />
+         </div>
+         <div style="display: flex; gap: 10px; margin-top: 20px">
+           <button type="submit" class="auth-btn" style="margin: 0; flex: 1">
+             Створити
+           </button>
+           <button type="button" class="auth-btn btn-delete" style="margin: 0; flex: 1" onclick="closeCalendarModal()">
+             Скасувати
+           </button>
+         </div>
+       </form>
+     </div>
+   </div>
+
+  <!-- Event Details Modal -->
+  <div id="event-details-modal" class="modal">
+    <div class="modal-content" style="width: 500px">
+      <div style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+          ">
+        <h3 id="detail-event-name">Деталі події</h3>
+        <button class="btn-sm" style="background: none; border: none; font-size: 1.2em" onclick="closeDetailModal()">
+          &times;
+        </button>
+      </div>
+
+      <div style="margin-bottom: 20px">
+        <label style="display: block; font-weight: 600; margin-bottom: 5px">Записані волонтери:</label>
+        <div id="volunteers-list" style="
+              max-height: 150px;
+              overflow-y: auto;
+              border: 1px solid #eee;
+              padding: 10px;
+              border-radius: 8px;
+            ">
+          <div style="padding: 5px 0; border-bottom: 1px solid #f9f9f9">
+            Іван Петренко (Група ПІ-21)
+          </div>
+          <div style="padding: 5px 0; border-bottom: 1px solid #f9f9f9">
+            Марія Коваль (Група КН-22)
+          </div>
+          <div style="padding: 5px 0">Олексій Бондар (Група ПІ-21)</div>
+        </div>
+      </div>
+
+      <hr style="margin-bottom: 20px; border: 0; border-top: 1px solid #eee" />
+
+      <h4 style="margin-bottom: 15px">Редагувати подію</h4>
+      <div class="form-group">
+        <label>Змінити назву</label>
+        <input type="text" id="edit-event-name" class="form-control" style="margin-bottom: 15px" />
+        <label>Змінити дату</label>
+        <input type="date" id="edit-event-date" class="form-control" style="margin-bottom: 15px" />
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-top: 20px">
+        <button class="auth-btn" style="margin: 0; flex: 1" onclick="saveEventChanges()">
+          Зберегти зміни
+        </button>
+        <button class="auth-btn btn-delete" style="margin: 0; flex: 1" onclick="deleteEvent()">
+          Видалити
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    console.log('Organizer dashboard starting...');
+    
+    try {
+    
+    function switchTab(tabId) {
+      console.log('Organizer switching to tab:', tabId);
+      var targetTab = document.getElementById(tabId);
+      if (!targetTab) {
+        console.error('Tab not found:', tabId);
+        return;
+      }
+      
+      document.querySelectorAll(".tab-content").forEach((tab) => {
+        tab.classList.remove("active");
+      });
+      targetTab.classList.add("active");
+
+      document.querySelectorAll(".nav-links a").forEach((link) => {
+        link.classList.remove("active");
+      });
+      var navLink = document.getElementById("nav-" + tabId);
+      if (navLink) {
+        navLink.classList.add("active");
+      }
+
+      if (tabId === "applicants") {
+        renderApplicants();
+      }
+      if (tabId === "schedule") {
+        renderCalendar();
+      }
+    }
+
+    function openCreateModal() {
+      document.getElementById("create-event-modal").style.display = "flex";
+    }
+
+    function closeCreateModal() {
+      document.getElementById("create-event-modal").style.display = "none";
+    }
+
+    // Close modals on form submission (with null checks)
+    const createForm = document.getElementById('create-event-form');
+    if (createForm) {
+      createForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        
+        fetch("{% url 'create_project' %}", {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+          }
+        }).then(response => {
+          if (response.ok) {
+            closeCreateModal();
+            window.location.reload();
+          } else {
+            response.json().then(data => {
+              alert('Помилка: ' + (data.message || 'Невідома помилка'));
+            }).catch(() => {
+              alert('Помилка при створенні завдання');
+            });
+          }
+        }).catch(err => {
+          console.error('Error:', err);
+          this.submit();
+        });
+      });
+    }
+
+    const calendarForm = document.getElementById('calendar-event-form');
+    if (calendarForm) {
+      calendarForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        
+        fetch("{% url 'create_project' %}", {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+          }
+        }).then(response => {
+          if (response.ok) {
+            closeCalendarModal();
+            window.location.reload();
+          } else {
+            response.json().then(data => {
+              alert('Помилка: ' + (data.message || 'Невідома помилка'));
+            }).catch(() => {
+              alert('Помилка при створенні завдання');
+            });
+          }
+        }).catch(err => {
+          console.error('Error:', err);
+          alert('Помилка мережі');
+        });
+      });
+    }
+
+    let editingEventId = null;
+    function viewEventDetails(id) {
+      editingEventId = id;
+      const ev = eventsDataList.find((e) => e.id === id);
+      if (!ev) return;
+
+      document.getElementById("detail-event-name").innerText = ev.name;
+      document.getElementById("edit-event-name").value = ev.name;
+      document.getElementById("edit-event-date").value = ev.date;
+      document.getElementById("event-details-modal").style.display = "flex";
+    }
+
+    function closeDetailModal() {
+      document.getElementById("event-details-modal").style.display = "none";
+      editingEventId = null;
+    }
+
+    function saveEventChanges() {
+      const newName = document.getElementById("edit-event-name").value;
+      const newDate = document.getElementById("edit-event-date").value;
+
+      if (editingEventId && newName && newDate) {
+        const evIndex = eventsDataList.findIndex(
+          (e) => e.id === editingEventId,
+        );
+        if (evIndex !== -1) {
+          eventsDataList[evIndex].name = newName;
+          eventsDataList[evIndex].date = newDate;
+
+          renderEventCards();
+          renderCalendar();
+          alert("Зміни успішно збережено!");
+          closeDetailModal();
+        }
+      }
+    }
+
+    function deleteEvent(id) {
+      if (confirm(`Ви впевнені, що хочете видалити цей захід?`)) {
+        const idx = eventsDataList.findIndex((e) => e.id === id);
+        if (idx !== -1) {
+          eventsDataList.splice(idx, 1);
+          renderEventCards();
+          renderCalendar();
+          alert("Захід видалено!");
+        }
+      }
+    }
+
+    let applicantsDataList = [
+      {% for app in applicants %}{% if not forloop.first %},{% endif %}{
+      id: {{ app.id }},
+      name: "{{ app.Volunteer.get_full_name|default:app.Volunteer.username|escapejs }}",
+      volunteerUsername: "{{ app.Volunteer.username|escapejs }}",
+      event: "{{ app.event.name|escapejs }}",
+      date: "{{ app.date_requested|date:'d.m.Y' }}",
+      status: "{{ app.get_status_display|escapejs }}",
+      hours: {{ app.event.hours }},
+      star: {% if app.star_rating %}true{% else %}false{% endif %}
+      }{% endfor %}
+    ];
+
+    function renderApplicants() {
+      const tbody = document.getElementById("applicants-table-body");
+      if (!tbody) return;
+
+      tbody.innerHTML = "";
+      applicantsDataList.forEach((app) => {
+        const tr = document.createElement("tr");
+        let statusClass = "pending";
+        if (app.status === "Схвалено") statusClass = "active";
+        if (app.status === "Відпрацьовано") statusClass = "completed";
+        if (app.status === "Відхилено") statusClass = "completed";
+
+        const safeName = (app.name || '').replace(/'/g, "\\'");
+        let actions = '';
+        if (app.status === "В очікуванні") {
+          actions = `
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button onclick="openApproveModal(${app.id}, '${safeName}')" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:linear-gradient(135deg,#10b981,#059669);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.3);transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(16,185,129,0.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(16,185,129,0.3)'">
+                <i class="fas fa-user-check"></i> Схвалити
+              </button>
+              <button onclick="rejectVolunteer(${app.id})" style="display:inline-flex;align-items:center;gap:6px;padding:7px 12px;background:white;color:#ef4444;border:1.5px solid #fca5a5;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='#fef2f2';this.style.borderColor='#ef4444'" onmouseout="this.style.background='white';this.style.borderColor='#fca5a5'">
+                <i class="fas fa-times"></i> Відхилити
+              </button>
+            </div>`;
+        } else if (app.status === "Схвалено") {
+          actions = `
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button onclick="openCompleteModal(${app.id}, ${app.hours}, '${safeName}')" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(99,102,241,0.3);transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(99,102,241,0.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(99,102,241,0.3)'">
+                <i class="fas fa-hourglass-half"></i> Зарахувати
+              </button>
+              <button onclick="openReportModal(${app.id}, '${safeName}')" style="display:inline-flex;align-items:center;gap:5px;padding:7px 10px;background:white;color:#ef4444;border:1.5px solid #fca5a5;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;" title="Поскаржитись" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='white'">
+                <i class="fas fa-flag"></i>
+              </button>
+              <button onclick="toggleStar(${app.id})" style="display:inline-flex;align-items:center;gap:5px;padding:7px 10px;background:${app.star ? '#fef3c7' : 'white'};color:${app.star ? '#d97706' : '#9ca3af'};border:1.5px solid ${app.star ? '#fcd34d' : '#e5e7eb'};border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;" title="Відзначити зіркою">
+                <i class="fas fa-star"></i>
+              </button>
+            </div>`;
+        } else {
+          actions = `<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;background:rgba(255,255,255,0.08);border-radius:6px;color:rgba(255,255,255,0.45);font-size:12px;font-style:italic;"><i class="fas fa-check-double"></i> Опрацьовано</span>`;
+        }
+
+        tr.innerHTML = `
+                    <td style="cursor: pointer;" onclick="window.location.href='/user/${app.volunteerUsername}/'">${app.star ? '<i class="fas fa-star" style="color: #f59e0b; margin-right: 5px;"></i>' : ''}<a href="/user/${app.volunteerUsername}/" style="color: inherit; text-decoration: none;">${app.name}</a></td>
+                    <td>${app.event}</td>
+                    <td>${app.date}</td>
+                    <td><span class="status ${statusClass}">${app.status}</span></td>
+                    <td>${actions}</td>
+                `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openApproveModal(id, volunteerName) {
+      document.getElementById('approve-request-id').value = id;
+      const nameEl = document.getElementById('approve-volunteer-name');
+      const avatarEl = document.getElementById('approve-avatar');
+      if (volunteerName) {
+        nameEl.textContent = volunteerName;
+        avatarEl.textContent = volunteerName.charAt(0).toUpperCase();
+      }
+      document.getElementById('approve-modal').style.display = 'flex';
+    }
+
+    function closeApproveModal() {
+      document.getElementById('approve-modal').style.display = 'none';
+    }
+
+    function setCompleteHours(val) {
+      document.getElementById('complete-hours').value = val;
+      syncCompleteQuick();
+    }
+
+    function changeCompleteHours(delta) {
+      const input = document.getElementById('complete-hours');
+      const newVal = Math.max(1, (parseInt(input.value) || 1) + delta);
+      input.value = newVal;
+      syncCompleteQuick();
+    }
+
+    function syncCompleteQuick() {
+      const val = parseInt(document.getElementById('complete-hours').value) || 0;
+      document.getElementById('complete-hours-display').textContent = val + ' год';
+      document.querySelectorAll('.complete-quick').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.val) === val);
+        btn.style.borderColor = parseInt(btn.dataset.val) === val ? '#6366f1' : '';
+        btn.style.background = parseInt(btn.dataset.val) === val ? '#6366f1' : '';
+        btn.style.color = parseInt(btn.dataset.val) === val ? 'white' : '';
+      });
+    }
+
+    function openCompleteModal(id, maxHours, volunteerName) {
+      document.getElementById('complete-request-id').value = id;
+      const defaultHours = maxHours || 4;
+      document.getElementById('complete-hours').value = defaultHours;
+      document.getElementById('complete-hours').max = maxHours || 99;
+      const nameEl = document.getElementById('complete-volunteer-name');
+      const avatarEl = document.getElementById('complete-avatar');
+      if (volunteerName) {
+        nameEl.textContent = volunteerName;
+        avatarEl.textContent = volunteerName.charAt(0).toUpperCase();
+      }
+      syncCompleteQuick();
+      document.getElementById('complete-modal').style.display = 'flex';
+    }
+
+    function closeCompleteModal() {
+      document.getElementById('complete-modal').style.display = 'none';
+    }
+
+    function showToast(message, type) {
+      type = type || 'success';
+      var bg = type === 'success'
+        ? 'linear-gradient(135deg,#10b981,#059669)'
+        : type === 'error'
+          ? 'linear-gradient(135deg,#ef4444,#dc2626)'
+          : 'linear-gradient(135deg,#6366f1,#4f46e5)';
+      var toast = document.createElement('div');
+      toast.className = 'app-toast';
+      toast.style.background = bg;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(function() {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
+        setTimeout(function() { toast.remove(); }, 320);
+      }, 3000);
+    }
+
+    function ajaxGet(url) {
+      return fetch(url, {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': '{{ csrf_token }}'
+        }
+      }).then(function(r) { return r.json(); });
+    }
+
+    function ajaxPost(url, formData) {
+      formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+      return fetch(url, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+      }).then(function(r) { return r.json(); });
+    }
+
+    function completeVolunteer() {
+      var id = document.getElementById('complete-request-id').value;
+      var hours = document.getElementById('complete-hours').value;
+      ajaxGet('/manage-request/' + id + '/complete/?hours=' + hours).then(function(data) {
+        if (data.ok) {
+          var app = applicantsDataList.find(function(a) { return a.id === parseInt(id); });
+          if (app) { app.status = 'Відпрацьовано'; renderApplicants(); }
+          closeCompleteModal();
+          showToast('✓ Зараховано ' + hours + ' год', 'success');
+        } else {
+          showToast(data.message || 'Помилка', 'error');
+        }
+      }).catch(function() { showToast('Помилка мережі', 'error'); });
+    }
+
+    function toggleStar(id) {
+      ajaxGet('/toggle-star/' + id + '/').then(function(data) {
+        if (data.ok) {
+          var app = applicantsDataList.find(function(a) { return a.id === id; });
+          if (app) { app.star = data.starred; renderApplicants(); }
+          showToast(data.starred ? '⭐ Зірочку додано!' : 'Зірочку прибрано', 'success');
+        }
+      }).catch(function() { showToast('Помилка мережі', 'error'); });
+    }
+
+    function approveVolunteer() {
+      var id = document.getElementById('approve-request-id').value;
+      if (!id || id === 'undefined') { showToast('Помилка: не вказано заявку', 'error'); return; }
+      ajaxGet('/manage-request/' + id + '/approve/').then(function(data) {
+        if (data.ok) {
+          var app = applicantsDataList.find(function(a) { return a.id === parseInt(id); });
+          if (app) { app.status = 'Схвалено'; renderApplicants(); }
+          closeApproveModal();
+          showToast('✓ Заявку схвалено', 'success');
+        } else {
+          showToast(data.message || 'Помилка', 'error');
+        }
+      }).catch(function() { showToast('Помилка мережі', 'error'); });
+    }
+
+    function rejectVolunteer(id) {
+      if (!confirm('Ви впевнені, що хочете відхилити цю заявку?')) return;
+      ajaxGet('/manage-request/' + id + '/reject/').then(function(data) {
+        if (data.ok) {
+          var app = applicantsDataList.find(function(a) { return a.id === id; });
+          if (app) { app.status = 'Відхилено'; renderApplicants(); }
+          showToast('Заявку відхилено', 'success');
+        } else {
+          showToast(data.message || 'Помилка', 'error');
+        }
+      }).catch(function() { showToast('Помилка мережі', 'error'); });
+    }
+
+    function pickChip(btn, text) {
+      document.querySelectorAll('.report-chip').forEach(function(c) { c.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('report-textarea').value = text;
+    }
+
+    function openReportModal(requestId, volunteerName) {
+      document.getElementById('report-request-id').value = requestId;
+      document.getElementById('report-volunteer-name').innerText = volunteerName || '';
+      var avatar = document.getElementById('report-avatar');
+      if (avatar) avatar.textContent = volunteerName ? volunteerName.charAt(0).toUpperCase() : '?';
+      document.getElementById('report-form').action = '/report-volunteer/' + requestId + '/';
+      document.getElementById('report-textarea').value = '';
+      document.querySelectorAll('.report-chip').forEach(function(c) { c.classList.remove('active'); });
+      document.getElementById('report-modal').style.display = 'flex';
+    }
+
+    function closeReportModal() {
+      document.getElementById('report-modal').style.display = 'none';
+    }
+
+    function deleteEvent(id) {
+      if (confirm(`Ви впевнені, що хочете видалити цей захід?`)) {
+        window.location.href = `/delete-project/${id}/`;
+      }
+    }
+
+    let eventsDataList = [
+      {% for p in projects %}{% if not forloop.first %},{% endif %}{
+      id: {{ p.id }},
+      name: "{{ p.name|escapejs }}",
+      org: "{{ p.organiser.get_full_name|default:p.organiser.username|escapejs }}",
+      date: "{{ p.date|date:'Y-m-d' }}",
+      volunteers: {{ p.requests.count }},
+      max_volunteers: {{ p.max_volunteers }},
+      icon: "fas fa-calendar-check",
+      bg: "#e0e7ff",
+      color: "var(--primary-color)"
+      }{% endfor %}
+    ];
+
+    function renderEventCards() {
+      const container = document.getElementById("events-container");
+      if (!container) return;
+
+      container.innerHTML = "";
+      eventsDataList.forEach((ev) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.style.display = "block";
+        card.style.cursor = "pointer";
+        card.onclick = () => viewEventDetails(ev.id);
+
+        const featuredBadge = {% if has_premium %}`<span style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#a78bfa);color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;margin-bottom:6px;"><i class="fas fa-crown" style="margin-right:3px;"></i>Featured</span>`{% else %}`<span></span>`{% endif %};
+        card.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+            <div class="card-info" style="flex:1">
+              ${featuredBadge}
+              <h3 style="font-size:18px;margin-bottom:6px;">${ev.name}</h3>
+              <p style="font-size:13px;margin-bottom:4px;"><i class="fas fa-users" style="margin-right:5px;opacity:0.7;"></i>${ev.volunteers} / ${ev.max_volunteers === 0 ? '∞' : ev.max_volunteers} волонтерів</p>
+              <small style="color:rgba(255,255,255,0.55);"><i class="far fa-calendar" style="margin-right:5px;"></i>${ev.date}</small>
+            </div>
+            <div class="card-icon" style="background:rgba(255,255,255,0.12);color:white;flex-shrink:0;">
+              <i class="${ev.icon}"></i>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.1);">
+            <button class="btn-sm" style="background:rgba(79,70,229,0.7);color:white;flex:1;" onclick="event.stopPropagation();viewEventDetails(${ev.id})">
+              <i class="fas fa-edit"></i> Редагувати
+            </button>
+            <button class="btn-sm btn-delete" style="flex:1;" onclick="event.stopPropagation();deleteEvent(${ev.id})">
+              <i class="fas fa-trash"></i> Видалити
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    let reportSortDirection = 1;
+    function sortReports(colIndex) {
+      const table = document.getElementById("reports-table");
+      const tbody = table.querySelector("tbody");
+      const rows = Array.from(tbody.querySelectorAll("tr"));
+
+      rows.sort((a, b) => {
+        const valA = a.cells[colIndex].innerText.trim();
+        const valB = b.cells[colIndex].innerText.trim();
+        if (colIndex === 2) {
+          return (parseFloat(valA) - parseFloat(valB)) * reportSortDirection;
+        }
+        return valA.localeCompare(valB, "uk") * reportSortDirection;
+      });
+
+      reportSortDirection *= -1;
+
+      tbody.innerHTML = "";
+      rows.forEach((row) => tbody.appendChild(row));
+
+      const icon = table.querySelector("thead i");
+      icon.className =
+        reportSortDirection === 1 ? "fas fa-sort-up" : "fas fa-sort-down";
+    }
+
+    function filterReportsByGroup() {
+      const filterValue = document.getElementById("reportGroupFilter").value;
+      const tableRows = document.querySelectorAll("#reports-table tbody tr");
+
+      tableRows.forEach((row) => {
+        const group = row.cells[0].innerText.trim();
+        if (filterValue === "all" || group === filterValue) {
+          row.style.display = "";
+        } else {
+          row.style.display = "none";
+        }
+      });
+    }
+
+    // Calendar Logic
+    let currentDate = new Date();
+
+    function renderCalendar() {
+      const grid = document.getElementById("calendar-grid");
+      const monthYear = document.getElementById("current-month-year");
+
+      if (!grid || !monthYear) return;
+
+      // Clear existing days (keep headers)
+      const headers = grid.querySelectorAll(".calendar-day-head");
+      grid.innerHTML = "";
+      headers.forEach((h) => grid.appendChild(h));
+
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+
+      const monthNames = [
+        "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
+        "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"
+      ];
+      monthYear.innerText = `${monthNames[month]} ${year}`;
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      let startDay = firstDay === 0 ? 6 : firstDay - 1;
+
+      for (let i = 0; i < startDay; i++) {
+        const empty = document.createElement("div");
+        grid.appendChild(empty);
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dayEl = document.createElement("div");
+        dayEl.className = "calendar-day";
+        const dateHeader = document.createElement("div");
+        dateHeader.style.fontWeight = "bold";
+        dateHeader.innerText = day;
+        dayEl.appendChild(dateHeader);
+
+        const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+        eventsDataList
+          .filter((ev) => ev.date === dateStr)
+          .forEach((ev) => {
+            const tag = document.createElement("div");
+            tag.className = "event-tag";
+            tag.innerText = ev.name;
+            dayEl.appendChild(tag);
+          });
+
+        dayEl.onclick = () => openCalendarModal(dateStr);
+        grid.appendChild(dayEl);
+      }
+    }
+
+    function prevMonth() {
+      currentDate.setMonth(currentDate.getMonth() - 1);
+      renderCalendar();
+    }
+
+    function nextMonth() {
+      currentDate.setMonth(currentDate.getMonth() + 1);
+      renderCalendar();
+    }
+
+    let selectedCalendarDate = "";
+    function openCalendarModal(dateStr) {
+      selectedCalendarDate = dateStr;
+      const modal = document.getElementById("calendar-event-modal");
+      const modalDate = document.getElementById("calendar-modal-date");
+      const modalDateInput = document.getElementById("calendar-modal-date-input");
+
+      modalDate.innerText = dateStr;
+      modalDateInput.value = `${dateStr}T12:00`;
+
+      document.getElementById("calendar-event-name").value = "";
+      document.getElementById("calendar-event-hours").value = "";
+      document.getElementById("calendar-event-max-volunteers").value = "0";
+
+      modal.style.display = "flex";
+    }
+
+    function closeCalendarModal() {
+      document.getElementById("calendar-event-modal").style.display = "none";
+    }
+
+    function openCalendarModalForNew() {
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      openCalendarModal(dateStr);
+    }
+
+    // User menu toggle
+    function toggleUserMenu(avatar) {
+      var menu = document.getElementById('user-menu');
+      if (menu.style.display === 'block') {
+        menu.style.display = 'none';
+      } else {
+        menu.style.display = 'block';
+      }
+    }
+
+    function toggleMobileMenu() {
+      var sidebar = document.querySelector('.sidebar');
+      var overlay = document.querySelector('.mobile-menu-overlay');
+      if (sidebar.classList.contains('mobile-open')) {
+        sidebar.classList.remove('mobile-open');
+        if (overlay) overlay.remove();
+      } else {
+        sidebar.classList.add('mobile-open');
+        var newOverlay = document.createElement('div');
+        newOverlay.className = 'mobile-menu-overlay';
+        newOverlay.onclick = function() {
+          sidebar.classList.remove('mobile-open');
+          this.remove();
+        };
+        document.body.appendChild(newOverlay);
+      }
+    }
+
+    document.querySelectorAll('.nav-links a').forEach(function(link) {
+      link.addEventListener('click', function() {
+        var sidebar = document.querySelector('.sidebar');
+        var overlay = document.querySelector('.mobile-menu-overlay');
+        sidebar.classList.remove('mobile-open');
+        if (overlay) overlay.remove();
+      });
+    });
+
+    // Close menu when clicking outside
+    document.addEventListener('click', function(e) {
+      var menu = document.getElementById('user-menu');
+      var avatar = document.querySelector('.avatar');
+      if (menu && !menu.contains(e.target) && !avatar.contains(e.target)) {
+        menu.style.display = 'none';
+      }
+    });
+
+    // Initialize
+    // Close all modals on page load
+    var createModal = document.getElementById("create-event-modal");
+    var detailModal = document.getElementById("event-details-modal");
+    var calendarModal = document.getElementById("calendar-event-modal");
+    
+    if (createModal) createModal.style.display = "none";
+    if (detailModal) detailModal.style.display = "none";
+    if (calendarModal) calendarModal.style.display = "none";
+    
+    // Close modal when clicking outside
+    if (createModal) {
+      createModal.addEventListener('click', function(e) {
+        if (e.target === this) closeCreateModal();
+      });
+    }
+    if (detailModal) {
+      detailModal.addEventListener('click', function(e) {
+        if (e.target === this) closeDetailModal();
+      });
+    }
+    if (calendarModal) {
+      calendarModal.addEventListener('click', function(e) {
+        if (e.target === this) closeCalendarModal();
+      });
+    }
+    
+    // Navigation tab click handlers
+    var navTabs = document.querySelectorAll('.nav-tab');
+    for (var i = 0; i < navTabs.length; i++) {
+        var link = navTabs[i];
+        (function(tabId) {
+            link.onclick = function(e) {
+                e.preventDefault();
+                switchTab(tabId);
+            };
+        })(link.getAttribute('data-tab'));
+    }
+    
+    // Render events and calendar
+    renderEventCards();
+    renderCalendar();
+    renderApplicants();
+
+    // Report form — submit via AJAX so no page reload / Django banner
+    var reportForm = document.getElementById('report-form');
+    if (reportForm) {
+      reportForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var fd = new FormData(this);
+        var url = this.action;
+        ajaxPost(url, fd).then(function(data) {
+          closeReportModal();
+          reportForm.reset();
+          showToast(data.ok ? '✓ ' + data.message : data.message, data.ok ? 'success' : 'error');
+        }).catch(function() { showToast('Помилка мережі', 'error'); });
+      });
+    }
+
+    // Dropdown functions for organizers
+    function toggleHoursInput() {
+      const select = document.getElementById('event-hours-select');
+      const hoursInput = document.getElementById('event-hours');
+      
+      if (select.value && select.value !== 'custom') {
+        hoursInput.value = select.value;
+      }
+    }
+    
+    function toggleVolunteersInput() {
+      const select = document.getElementById('event-max-volunteers-select');
+      const volunteersInput = document.getElementById('event-max-volunteers');
+      
+      if (select.value && select.value !== 'custom') {
+        volunteersInput.value = select.value;
+      }
+    }
+    
+    } catch (err) {
+      console.error('Error in organizer dashboard:', err);
+    }
+  </script>
+</body>
+
+</html>

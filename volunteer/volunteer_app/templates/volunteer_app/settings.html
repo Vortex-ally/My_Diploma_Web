@@ -1,0 +1,447 @@
+{% load static %}
+
+<!doctype html>
+<html lang="uk">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Налаштування - BoscoVolunteer</title>
+  <link rel="stylesheet" href="{% static 'volunteer_app/auth.css' %}" />
+  <link rel="stylesheet" href="{% static 'volunteer_app/dashboard.css' %}" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    body { font-size: 15px; }
+
+    .settings-container {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    .settings-card {
+      background: rgba(255,255,255,0.10);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255,255,255,0.16);
+      padding: 28px 30px;
+      border-radius: 18px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      margin-bottom: 20px;
+    }
+
+    .settings-card h3 {
+      color: white;
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 7px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.8);
+      font-size: 13px;
+    }
+
+    .form-group input[type="text"],
+    .form-group input[type="email"],
+    .form-group input[type="password"],
+    .form-group input[type="number"] {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      font-size: 14px;
+      background: rgba(255,255,255,0.08);
+      color: white;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .form-group input::placeholder { color: rgba(255,255,255,0.4); }
+
+    .form-group input:focus {
+      border-color: #818cf8;
+      background: rgba(255,255,255,0.13);
+    }
+
+    .btn-save {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 22px;
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+      box-shadow: 0 4px 12px rgba(99,102,241,0.35);
+      transition: all 0.2s;
+    }
+    .btn-save:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(99,102,241,0.45); }
+
+    .btn-green {
+      background: linear-gradient(135deg, #10b981, #059669);
+      box-shadow: 0 4px 12px rgba(16,185,129,0.35);
+    }
+    .btn-green:hover { box-shadow: 0 6px 16px rgba(16,185,129,0.45); }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 18px;
+      background: rgba(255,255,255,0.12);
+      color: white;
+      text-decoration: none;
+      border-radius: 10px;
+      margin-bottom: 22px;
+      font-weight: 600;
+      font-size: 14px;
+      border: 1px solid rgba(255,255,255,0.2);
+      transition: background 0.2s;
+    }
+    .back-btn:hover { background: rgba(255,255,255,0.2); }
+
+    .messages { max-width: 680px; margin: 0 auto 20px; }
+
+    .alert {
+      padding: 13px 16px;
+      margin-bottom: 12px;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+    .alert-success { background: rgba(16,185,129,0.15); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); }
+    .alert-error, .alert-danger { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+    .alert-info { background: rgba(99,102,241,0.15); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); }
+    .alert-warning { background: rgba(245,158,11,0.15); color: #fcd34d; border: 1px solid rgba(245,158,11,0.3); }
+
+    /* 2FA badge */
+    .twofa-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      background: linear-gradient(135deg,#f59e0b,#d97706);
+      color: white;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    /* Code input */
+    .code-inputs {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin: 20px 0;
+    }
+
+    .code-digit {
+      width: 52px;
+      height: 60px;
+      border: 2px solid rgba(255,255,255,0.25);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.08);
+      color: white;
+      font-size: 26px;
+      font-weight: 800;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+      caret-color: #818cf8;
+    }
+    .code-digit:focus {
+      border-color: #818cf8;
+      background: rgba(255,255,255,0.15);
+    }
+
+    .masked-email-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: rgba(99,102,241,0.2);
+      border: 1px solid rgba(99,102,241,0.4);
+      border-radius: 20px;
+      color: #a5b4fc;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .separator {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      margin: 24px 0;
+    }
+  </style>
+</head>
+
+<body class="settings-page">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="logo">
+      <i class="fas fa-hand-holding-heart"></i>
+      <span>{% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}
+        <small style="font-size:10px;display:block;margin-top:-5px">
+          {% if profile.role == 'volunteer' %}ВОЛОНТЕР{% elif profile.role == 'organiser' %}ОРГАНІЗАТОР{% elif profile.role == 'admin' %}АДМІН{% endif %}
+        </small>
+      </span>
+    </div>
+    <ul class="nav-links">
+      <li><a href="{% url 'dashboard' %}"><i class="fas fa-arrow-left"></i> <span>Назад</span></a></li>
+      <li><a href="{% url 'profile' %}"><i class="fas fa-user"></i> <span>Профіль</span></a></li>
+      <li><a href="{% url 'settings' %}" style="background:rgba(255,255,255,0.12);color:white;"><i class="fas fa-cog"></i> <span>Налаштування</span></a></li>
+      <li style="margin-top:50px"><a href="{% url 'logout' %}" style="color:#ef4444"><i class="fas fa-sign-out-alt"></i> <span>Вихід</span></a></li>
+    </ul>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Menu">
+      <i class="fas fa-bars"></i>
+    </button>
+    <a href="{% url 'dashboard' %}" class="back-btn">
+      <i class="fas fa-arrow-left"></i> Назад до панелі
+    </a>
+
+    {% if messages %}
+    <div class="messages">
+      {% for message in messages %}
+      <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %}">
+        {{ message }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="settings-container">
+
+      {% if show_code_form %}
+      <!-- ══════════════════════════════════════════════════════════ -->
+      <!-- STEP 2 — Enter the verification code                       -->
+      <!-- ══════════════════════════════════════════════════════════ -->
+      <div class="settings-card" style="border-top:3px solid #6366f1;">
+        <h3>
+          <span style="background:rgba(99,102,241,0.2);width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;">
+            <i class="fas fa-shield-alt" style="color:#818cf8;font-size:15px;"></i>
+          </span>
+          Введіть код підтвердження
+        </h3>
+
+        <div style="text-align:center;margin-bottom:24px;">
+          <p style="color:rgba(255,255,255,0.65);font-size:14px;margin-bottom:12px;">Код надіслано на адресу:</p>
+          <span class="masked-email-badge">
+            <i class="fas fa-envelope"></i>
+            {% if masked_email %}{{ masked_email }}{% else %}вашу пошту{% endif %}
+          </span>
+          <p style="color:rgba(255,255,255,0.4);font-size:12px;margin-top:12px;">Код дійсний 10 хвилин. Максимум 3 спроби.</p>
+        </div>
+
+        <form action="{% url 'two_factor_password' %}" method="POST" id="code-form">
+          {% csrf_token %}
+          <input type="hidden" name="step" value="verify" />
+          <input type="hidden" name="code" id="code-hidden" />
+
+          <div class="code-inputs" id="code-inputs">
+            <input class="code-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" />
+            <input class="code-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" />
+            <input class="code-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" />
+            <input class="code-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" />
+            <input class="code-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" />
+            <input class="code-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" />
+          </div>
+
+          <div style="text-align:center;">
+            <button type="submit" class="btn-save btn-green" style="padding:12px 36px;font-size:15px;" id="verify-btn" disabled>
+              <i class="fas fa-check-circle"></i> Підтвердити та змінити пароль
+            </button>
+          </div>
+        </form>
+
+        <hr class="separator" />
+        <div style="text-align:center;">
+          <a href="{% url 'settings' %}" style="color:rgba(255,255,255,0.5);font-size:13px;text-decoration:none;">
+            <i class="fas fa-redo" style="margin-right:5px;"></i>Почати знову
+          </a>
+        </div>
+      </div>
+
+      {% else %}
+      <!-- ══════════════════════════════════════════════════════════ -->
+      <!-- Normal settings                                            -->
+      <!-- ══════════════════════════════════════════════════════════ -->
+
+      <!-- Profile -->
+      <div class="settings-card">
+        <h3><i class="fas fa-user-edit" style="color:#818cf8;"></i> Редагування профілю</h3>
+        <form action="{% url 'update_profile' %}" method="post">
+          {% csrf_token %}
+          <div class="form-group">
+            <label>Ім'я</label>
+            <input type="text" name="first_name" value="{{ user.first_name|default:'' }}" placeholder="Ваше ім'я">
+          </div>
+          <div class="form-group">
+            <label>Прізвище</label>
+            <input type="text" name="last_name" value="{{ user.last_name|default:'' }}" placeholder="Ваше прізвище">
+          </div>
+          {% if profile.role == 'volunteer' %}
+          <div class="form-group">
+            <label>Група</label>
+            <input type="text" name="group_name" value="{{ profile.group_name|default:'' }}" placeholder="Наприклад, ПІ-21">
+          </div>
+          {% endif %}
+          <button type="submit" class="btn-save">
+            <i class="fas fa-save"></i> Зберегти профіль
+          </button>
+        </form>
+      </div>
+
+      <!-- 2FA Password Change -->
+      <div class="settings-card" style="border-top:3px solid #10b981;">
+        <h3>
+          <span style="background:rgba(16,185,129,0.2);width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;">
+            <i class="fas fa-shield-alt" style="color:#34d399;font-size:15px;"></i>
+          </span>
+          Зміна пароля
+          <span class="twofa-badge" style="margin-left:8px;"><i class="fas fa-envelope"></i> 2FA</span>
+        </h3>
+
+        <div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:10px;padding:13px 16px;margin-bottom:20px;display:flex;gap:10px;align-items:flex-start;">
+          <i class="fas fa-info-circle" style="color:#34d399;margin-top:2px;flex-shrink:0;"></i>
+          <div style="color:rgba(255,255,255,0.75);font-size:13px;line-height:1.6;">
+            Для зміни пароля введіть email, зареєстрований у вашому акаунті.
+            На нього прийде <strong style="color:white;">6-значний код підтвердження</strong>.
+            Після введення коду пароль буде змінено.
+          </div>
+        </div>
+
+        <form action="{% url 'two_factor_password' %}" method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="step" value="send" />
+
+          <div class="form-group">
+            <label><i class="fas fa-envelope" style="margin-right:5px;opacity:0.7;"></i>Email акаунту <span style="color:#f87171">*</span></label>
+            <input type="email" name="email" placeholder="Введіть ваш email" required autocomplete="email">
+          </div>
+
+          <hr class="separator" />
+
+          <div class="form-group">
+            <label><i class="fas fa-lock" style="margin-right:5px;opacity:0.7;"></i>Новий пароль <span style="color:#f87171">*</span></label>
+            <input type="password" name="new_password" placeholder="Мінімум 8 символів" required minlength="8" id="new-pwd">
+          </div>
+          <div class="form-group">
+            <label><i class="fas fa-lock" style="margin-right:5px;opacity:0.7;"></i>Підтвердження пароля <span style="color:#f87171">*</span></label>
+            <input type="password" name="confirm_password" placeholder="Повторіть новий пароль" required id="confirm-pwd"
+              oninput="checkPasswordMatch()">
+          </div>
+          <div id="pwd-match-hint" style="font-size:12px;margin-top:-10px;margin-bottom:12px;display:none;"></div>
+
+          <button type="submit" class="btn-save btn-green" id="send-btn">
+            <i class="fas fa-paper-plane"></i> Надіслати код на email
+          </button>
+        </form>
+      </div>
+
+      {% endif %}
+    </div><!-- /settings-container -->
+  </div><!-- /main-content -->
+
+  <script>
+    // ── Mobile menu ──────────────────────────────────────────────────────────
+    function toggleMobileMenu() {
+      var sidebar = document.querySelector('.sidebar');
+      var overlay = document.querySelector('.mobile-menu-overlay');
+      if (sidebar.classList.contains('mobile-open')) {
+        sidebar.classList.remove('mobile-open');
+        if (overlay) overlay.remove();
+      } else {
+        sidebar.classList.add('mobile-open');
+        var newOverlay = document.createElement('div');
+        newOverlay.className = 'mobile-menu-overlay';
+        newOverlay.onclick = function() { sidebar.classList.remove('mobile-open'); this.remove(); };
+        document.body.appendChild(newOverlay);
+      }
+    }
+
+    // ── Password match hint ─────────────────────────────────────────────────
+    function checkPasswordMatch() {
+      var p1 = document.getElementById('new-pwd');
+      var p2 = document.getElementById('confirm-pwd');
+      var hint = document.getElementById('pwd-match-hint');
+      if (!p1 || !p2 || !hint) return;
+      if (!p2.value) { hint.style.display = 'none'; return; }
+      hint.style.display = 'block';
+      if (p1.value === p2.value) {
+        hint.innerHTML = '<i class="fas fa-check-circle" style="color:#34d399"></i> <span style="color:#34d399">Паролі збігаються</span>';
+      } else {
+        hint.innerHTML = '<i class="fas fa-times-circle" style="color:#f87171"></i> <span style="color:#f87171">Паролі не збігаються</span>';
+      }
+    }
+
+    // ── 6-digit code inputs ─────────────────────────────────────────────────
+    (function() {
+      var digits = document.querySelectorAll('.code-digit');
+      if (!digits.length) return;
+
+      var verifyBtn = document.getElementById('verify-btn');
+      var hiddenInput = document.getElementById('code-hidden');
+
+      function updateHidden() {
+        var code = Array.from(digits).map(function(d) { return d.value; }).join('');
+        hiddenInput.value = code;
+        if (verifyBtn) verifyBtn.disabled = code.length < 6;
+      }
+
+      digits.forEach(function(el, idx) {
+        el.addEventListener('input', function() {
+          // Keep only digit
+          this.value = this.value.replace(/\D/g, '').slice(-1);
+          if (this.value && idx < digits.length - 1) {
+            digits[idx + 1].focus();
+          }
+          updateHidden();
+        });
+
+        el.addEventListener('keydown', function(e) {
+          if (e.key === 'Backspace' && !this.value && idx > 0) {
+            digits[idx - 1].focus();
+            digits[idx - 1].value = '';
+            updateHidden();
+          }
+        });
+
+        el.addEventListener('paste', function(e) {
+          e.preventDefault();
+          var pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+          pasted.split('').slice(0, 6).forEach(function(ch, i) {
+            if (digits[i]) digits[i].value = ch;
+          });
+          var last = Math.min(pasted.length, 5);
+          digits[last].focus();
+          updateHidden();
+        });
+      });
+
+      // Auto-focus first digit
+      if (digits[0]) digits[0].focus();
+    })();
+  </script>
+</body>
+
+</html>

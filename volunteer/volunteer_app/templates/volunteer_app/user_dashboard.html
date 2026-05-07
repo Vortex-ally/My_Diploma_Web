@@ -1,0 +1,880 @@
+{% load static %}
+{% load dict_extras %}
+
+<!doctype html>
+<html lang="uk">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Панель Волонтера - BoscoVolunteer</title>
+  <link rel="stylesheet" href="{% static 'volunteer_app/auth.css' %}" />
+  <link rel="stylesheet" href="{% static 'volunteer_app/dashboard.css' %}" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    /* Tab Styles */
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .nav-links a {
+      cursor: pointer;
+    }
+
+    /* Calendar Styles (Consistent with Admin) */
+    .calendar-container {
+      background: var(--glass-card, rgba(255,255,255,0.1));
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--glass-border, rgba(255,255,255,0.14));
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      margin-top: 20px;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 10px;
+    }
+
+    .calendar-day-head {
+      font-weight: bold;
+      text-align: center;
+      padding: 10px;
+      color: rgba(255,255,255,0.55);
+    }
+
+    .calendar-day {
+      min-height: 80px;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 5px;
+      cursor: pointer;
+      transition: background 0.2s;
+      color: rgba(255,255,255,0.88);
+    }
+
+    .calendar-day:hover {
+      background: rgba(255,255,255,0.08);
+    }
+
+    .event-tag {
+      background: var(--primary-color);
+      color: white;
+      font-size: 10px;
+      padding: 2px 4px;
+      border-radius: 3px;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Achievement Styles */
+    .achievement-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .achievement-card {
+      background: var(--glass-card, rgba(255,255,255,0.1));
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--glass-border, rgba(255,255,255,0.14));
+      padding: 20px;
+      border-radius: 15px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      transition: transform 0.3s, background 0.3s;
+      color: rgba(255,255,255,0.9);
+    }
+
+    .achievement-card:hover {
+      transform: translateY(-5px);
+      background: var(--glass-card-hover, rgba(255,255,255,0.16));
+    }
+
+    .achievement-card i {
+      font-size: 40px;
+      margin-bottom: 15px;
+      color: #fbbf24;
+    }
+
+    .achievement-card.locked {
+      filter: grayscale(1);
+      opacity: 0.5;
+    }
+
+    /* Improved Button Styles */
+    .btn-sm {
+      padding: 8px 15px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      text-decoration: none;
+    }
+
+    .btn-sm:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      filter: brightness(1.1);
+    }
+
+    .btn-edit {
+      background: #4f46e5;
+      color: white;
+    }
+
+    .btn-delete {
+      background: #ef4444;
+      color: white;
+    }
+
+    /* Alert styles */
+    .alert {
+      padding: 15px;
+      margin-bottom: 20px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+    }
+
+    .alert-success {
+      background-color: #d1fae5;
+      color: #065f46;
+      border-color: #a7f3d0;
+    }
+
+    .alert-error,
+    .alert-danger {
+      background-color: #fee2e2;
+      color: #991b1b;
+      border-color: #fecaca;
+    }
+
+    .alert-info,
+    .alert-warning {
+      background-color: #e0e7ff;
+      color: #3730a3;
+      border-color: #c7d2fe;
+    }
+
+    .btn-action {
+      background: #4f46e5;
+      color: white;
+      padding: 12px 25px;
+      border-radius: 10px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+    }
+
+    .btn-action:hover {
+      background: #4338ca;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(79, 70, 229, 0.3);
+    }
+
+    .status-badge-inline {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      display: inline-block;
+    }
+
+    .status-badge-inline.success {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .status-badge-inline.warning {
+      background: #fef9c3;
+      color: #854d0e;
+    }
+
+    .status-badge-inline.danger {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    /* Rating Styles */
+    .rating-list {
+      background: var(--glass-card, rgba(255,255,255,0.1));
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--glass-border, rgba(255,255,255,0.14));
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+
+    .rating-item {
+      display: flex;
+      align-items: center;
+      padding: 15px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      border-radius: 10px;
+      transition: background 0.2s;
+    }
+
+    .rating-item:hover {
+      background: rgba(255,255,255,0.06);
+    }
+
+    .rating-item:last-child {
+      border-bottom: none;
+    }
+
+    .rank {
+      font-weight: bold;
+      font-size: 18px;
+      width: 50px;
+      color: rgba(255,255,255,0.7);
+    }
+
+    .user-name {
+      flex-grow: 1;
+      font-weight: 500;
+      color: rgba(255,255,255,0.9);
+    }
+
+    .user-hours {
+      font-weight: bold;
+      color: #34d399;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 25px;
+      border-radius: 15px;
+      width: 450px;
+      max-width: 90%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .event-detail-item {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 15px;
+      color: var(--text-dark);
+    }
+
+    .event-detail-item i {
+      color: var(--primary-color);
+      width: 20px;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="logo">
+      <i class="fas fa-hand-holding-heart"></i>
+      <span>{% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}
+        <small style="font-size: 10px; display: block; margin-top: -5px">{% if profile.role == 'volunteer' %}ВОЛОНТЕР{% elif profile.role == 'organiser' %}ОРГАНІЗАТОР{% elif profile.role == 'admin' %}АДМІН{% endif %}</small></span>
+    </div>
+    <ul class="nav-links">
+      <li>
+        <a href="#" class="nav-tab active" data-tab="dashboard" id="nav-dashboard"><i class="fas fa-th-large"></i>
+          Дашборд</a>
+      </li>
+      <li>
+        <a href="#" class="nav-tab" data-tab="projects" id="nav-projects"><i class="fas fa-briefcase"></i> Волонтерські роботи</a>
+      </li>
+      <li>
+        <a href="#" class="nav-tab" data-tab="schedule" id="nav-schedule"><i class="fas fa-calendar-alt"></i> Розклад</a>
+      </li>
+      <li>
+        <a href="#" class="nav-tab" data-tab="rating" id="nav-rating"><i class="fas fa-trophy"></i> Рейтинг волонтерів</a>
+      </li>
+      <li>
+        <a href="{% url 'chat' %}"><i class="fas fa-comments"></i> Чат</a>
+      </li>
+      <li>
+        <a href="{% url 'events' %}"><i class="fas fa-calendar"></i> Всі події</a>
+      </li>
+      <li>
+        <a href="#" class="nav-tab" data-tab="reviews" id="nav-reviews"><i class="fas fa-star"></i> Мої відгуки</a>
+      </li>
+      <li>
+        <a href="{% url 'organization_list' %}"><i class="fas fa-building"></i> Спільноти</a>
+      </li>
+      <li>
+        {% if has_premium %}
+          <span style="color:#a78bfa;padding:8px 15px;display:block"><i class="fas fa-crown"></i> Преміум ✓</span>
+        {% else %}
+          <a href="{% url 'purchase_plan' 'premium' %}" style="color:#a78bfa">
+            <i class="fas fa-crown"></i> Преміум <span style="font-size:10px;background:#ede9fe;color:#5b21b6;padding:1px 6px;border-radius:4px;margin-left:4px;">$20</span>
+          </a>
+        {% endif %}
+      </li>
+      <li style="margin-top: 50px">
+        <a href="{% url 'logout' %}" style="color: #ef4444"><i class="fas fa-sign-out-alt"></i> Вихід</a>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Menu">
+          <i class="fas fa-bars"></i>
+        </button>
+        <div class="brand">
+          <h2>Огляд активності</h2>
+          <p class="subtitle">
+            Ласкаво просимо назад{% if profile %}, {{ profile.first_name }}{% endif %}!
+
+          </p>
+        </div>
+      </div>
+
+      <div class="top-bar-right">
+        <div class="user-card">
+          <div class="avatar" role="button" tabindex="0" aria-label="Відкрити меню" onclick="toggleUserMenu(this)">
+            <img
+              src="https://ui-avatars.com/api/?name={% if profile %}{{ profile.first_name }}+{{ profile.last_name }}{% else %}Volunteer{% endif %}&background=4f46e5&color=fff"
+              alt="{% if profile %}{{ profile.first_name }} {{ profile.last_name }}{% else %}Волонтер{% endif %}" />
+          </div>
+          <div class="user-meta">
+            <div class="user-name">
+              Волонтер
+            </div>
+            <div class="user-role">{% if profile %}{{ profile.user.get_full_name|default:user.username }}{% else %}{{
+              user.email }}{% endif %}</div>
+          </div>
+
+
+          <div class="user-menu" aria-hidden="true" id="user-menu">
+            <div style="padding: 15px; border-bottom: 1px solid #eee; text-align: center;">
+              <div style="font-weight: 600; color: var(--primary-color);">{% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}</div>
+              <div style="font-size: 12px; color: #666;">{{ user.email }}</div>
+            </div>
+            <a href="{% url 'profile' %}"><i class="fas fa-user"></i> Профіль</a>
+            <a href="{% url 'settings' %}"><i class="fas fa-cog"></i> Налаштування</a>
+            <div class="divider"></div>
+            <form action="{% url 'logout' %}" method="post" style="display: block;">
+              {% csrf_token %}
+              <button type="submit" style="
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                    color: #ef4444;
+                    padding: 8px 15px;
+                    width: 100%;
+                    text-align: left;
+                    font-size: 14px;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                  ">
+                <i class="fas fa-sign-out-alt"></i> Вихід
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    {% if messages %}
+    <div class="messages" style="padding: 0 20px;">
+      {% for message in messages %}
+      <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %}">
+        {{ message }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Dashboard Tab -->
+    <div id="dashboard" class="tab-content active">
+      <div class="cards">
+        <div class="card">
+          <div class="card-info">
+            <h3>{{ joined_opportunities.count }}</h3>
+            <p>Активних волонтерств</p>
+          </div>
+          <div class="card-icon">
+            <i class="fas fa-clock"></i>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-info">
+            <h3>{{ activities.count }}</h3>
+            <p>Останніх активностей</p>
+          </div>
+          <div class="card-icon">
+            <i class="fas fa-check-circle"></i>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-info">
+            <h3>{{ opportunities.count }}</h3>
+            <p>Доступних можливостей</p>
+          </div>
+        </div>
+
+        <!-- Goal Card -->
+        <div class="card" style="grid-column: 1 / -1; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white;">
+          <div class="card-info" style="color: white;">
+            <h3 style="color: white;"><i class="fas fa-bullseye"></i> Ціль: {{ volunteer_goal.target_hours|default:"20" }} годин</h3>
+            <p style="color: rgba(255,255,255,0.9);">Ви відпрацювали {{ volunteer_goal.current_hours|default:"0" }} годин</p>
+            <div style="background: rgba(255,255,255,0.2); border-radius: 10px; height: 20px; margin-top: 10px; overflow: hidden;">
+              <div style="background: white; height: 100%; width: {{ progress_percent|default:"0" }}%; border-radius: 10px; transition: width 0.3s;"></div>
+            </div>
+            <p style="margin-top: 5px; font-size: 12px; color: rgba(255,255,255,0.8);">{{ progress_percent|default:"0" }}% виконано</p>
+          </div>
+          <div class="card-icon" style="background: rgba(255,255,255,0.2);">
+            <i class="fas fa-trophy"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Projects Tab -->
+    <div id="projects" class="tab-content">
+      <div class="recent-grid">
+        <div class="section-header">
+          <h3>Доступні можливості</h3>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Назва проєкту</th>
+              <th>Організація</th>
+              <th>Дата</th>
+              <th>Години</th>
+              <th>Потрібно</th>
+              {% if has_premium %}<th style="color:#a78bfa"><i class="fas fa-crown"></i> Хто іде</th>{% endif %}
+              <th>Дія</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in opportunities %}
+            <tr>
+              <td>{{ p.name }}</td>
+              <td>{{ p.organiser.get_full_name|default:p.organiser.username }}</td>
+              <td>{{ p.date|date:"d.m.Y" }}</td>
+              <td>{{ p.hours }} год</td>
+              <td>{% if p.max_volunteers == 0 %}∞{% elif p.current_volunteers >= p.max_volunteers %} волонтерів не потрібно{% else %}{{ p.current_volunteers|default:0 }}/{{ p.max_volunteers }}{% endif %}</td>
+              {% if has_premium %}
+              <td style="font-size:12px;max-width:160px;">
+                {% with goers=attendees_by_event|get_item:p.id %}
+                {% if goers %}
+                  <span style="color:rgba(200,180,255,0.9);">
+                    {% for att in goers %}{{ att.get_full_name|default:att.username }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                  </span>
+                {% else %}
+                  <span style="color:rgba(255,255,255,0.35);">—</span>
+                {% endif %}
+                {% endwith %}
+              </td>
+              {% endif %}
+              <td>
+                {% if p.application_status == 'approved' %}
+                <span class="status-badge-inline success">Прийнято</span>
+                {% elif p.application_status == 'pending' %}
+                <span class="status-badge-inline warning">Заявку подано</span>
+                {% elif p.application_status == 'rejected' %}
+                <span class="status-badge-inline danger">Відхилено</span>
+                {% elif p.application_status == 'completed' %}
+                <span class="status-badge-inline" style="background: #10b981; color: white;">Відпрацьовано</span>
+                {% elif p.max_volunteers > 0 and p.current_volunteers >= p.max_volunteers %}
+                  {% if p.id in priority_event_ids %}
+                    <span class="status-badge-inline warning">Пріоритет подано</span>
+                  {% elif has_premium %}
+                    <a href="{% url 'apply_project' p.id %}"
+                       style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:white;border:none;padding:5px 12px;border-radius:5px;text-decoration:none;font-size:12px;font-weight:600;">
+                      <i class="fas fa-crown"></i> Подати (Premium)
+                    </a>
+                  {% else %}
+                    <a href="{% url 'purchase_plan' 'priority' %}?project_id={{ p.id }}"
+                       style="background:#f59e0b;color:white;border:none;padding:5px 10px;border-radius:5px;text-decoration:none;font-size:12px;font-weight:600;">
+                      <i class="fas fa-bolt"></i> Місце за $1
+                    </a>
+                  {% endif %}
+                {% else %}
+                <a href="{% url 'apply_project' p.id %}" class="btn-sm" style="
+                        background: var(--primary-color);
+                        border: none;
+                        color: white;
+                        padding: 5px 15px;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        text-decoration: none;
+                        display: inline-block;
+                      ">
+                  Подати заявку
+                </a>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5" style="text-align: center; padding: 20px">Проєктів не знайдено</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Schedule Tab -->
+    <div id="schedule" class="tab-content">
+      <div class="section-header" style="justify-content: center; flex-direction: column; gap: 15px">
+        <h3>Мій розклад</h3>
+        <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.1);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.15);padding:8px 16px;border-radius:12px;">
+          <button class="btn-sm" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.2);width:32px;height:32px;padding:0;border-radius:8px;" onclick="prevMonth()">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <span id="current-month-year" style="font-weight:700;font-size:1.05em;color:white;min-width:140px;text-align:center;">Лютий 2026</span>
+          <button class="btn-sm" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.2);width:32px;height:32px;padding:0;border-radius:8px;" onclick="nextMonth()">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+      <div class="calendar-container">
+        <div class="calendar-grid" id="calendar-grid">
+          <div class="calendar-day-head">Пн</div>
+          <div class="calendar-day-head">Вт</div>
+          <div class="calendar-day-head">Ср</div>
+          <div class="calendar-day-head">Чт</div>
+          <div class="calendar-day-head">Пт</div>
+          <div class="calendar-day-head">Сб</div>
+          <div class="calendar-day-head">Нд</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rating Tab -->
+    <div id="rating" class="tab-content">
+      <div class="section-header">
+        <h3>Рейтинг волонтерів</h3>
+      </div>
+      <div class="rating-list">
+        {% for r in ratings %}
+        <div class="rating-item" {% if r.name == user %}style="background:rgba(167,139,250,0.18);border:1px solid rgba(167,139,250,0.3);border-radius:10px;" {% endif %}>
+          <div class="rank">
+            {% if forloop.counter == 1 %}<span style="font-size:22px;">🥇</span>
+            {% elif forloop.counter == 2 %}<span style="font-size:22px;">🥈</span>
+            {% elif forloop.counter == 3 %}<span style="font-size:22px;">🥉</span>
+            {% else %}#{{ forloop.counter }}{% endif %}
+          </div>
+          <div class="user-name">
+            {% if r.name.id in premium_user_ids %}<span title="Преміум користувач" style="color:#a78bfa;margin-right:4px;"><i class="fas fa-crown"></i></span>{% endif %}
+            {% if r.name.get_full_name %}{{ r.name.get_full_name }}{% else %}{{ r.name.username }}{% endif %} {% if r.name.profile.group_name %}({{ r.name.profile.group_name }}){% endif %}{% if r.name == user %} - Ви{% endif %}
+          </div>
+          <div class="user-hours">{{ r.rating }} год</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Reviews Tab -->
+    <div id="reviews" class="tab-content">
+      <div class="section-header">
+        <h3><i class="fas fa-star" style="color:#f59e0b"></i> Мої відгуки</h3>
+      </div>
+
+      {% if completed_requests %}
+      <div style="margin-bottom:20px;background:#e0e7ff;border-radius:12px;padding:16px;color:#3730a3;font-size:14px;">
+        <i class="fas fa-info-circle"></i> Залиште відгук про завершені заходи, щоб допомогти організаторам та іншим волонтерам.
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Захід</th>
+            <th>Дата</th>
+            <th>Годин</th>
+            <th>Відгук</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for req in completed_requests %}
+          <tr>
+            <td><strong>{{ req.event.name }}</strong></td>
+            <td>{{ req.event.date|date:"d.m.Y" }}</td>
+            <td>{{ req.approved_hours|default:req.event.hours }} год</td>
+            <td>
+              {% if req.event.id in reviewed_event_ids %}
+                <span style="color:#10b981;font-weight:600;"><i class="fas fa-check-circle"></i> Відгук залишено</span>
+              {% else %}
+                <a href="{% url 'leave_review' req.id %}"
+                   style="background:#f59e0b;color:white;padding:5px 12px;border-radius:7px;text-decoration:none;font-size:13px;font-weight:600;">
+                  <i class="fas fa-star"></i> Оцінити
+                </a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div style="text-align:center;padding:40px;color:#9ca3af;">
+        <i class="fas fa-star" style="font-size:40px;margin-bottom:12px;display:block"></i>
+        Завершених заходів ще немає. Беріть участь у заходах, щоб залишати відгуки.
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Event Details Modal -->
+    <div id="event-modal" class="modal">
+      <div class="modal-content" style="max-width: 500px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
+          <h3 style="margin: 0; color: var(--primary-color);">Деталі заходу</h3>
+          <button onclick="closeModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
+        </div>
+        <div style="margin-bottom: 15px;">
+          <i class="fas fa-calendar-alt" style="color: var(--primary-color); margin-right: 8px;"></i>
+          <span id="modal-date" style="font-weight: 600;"></span>
+        </div>
+        <div id="event-info" style="max-height: 300px; overflow-y: auto;"></div>
+        <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end;">
+          <button class="btn-action btn-danger" style="background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;" onclick="closeModal()">
+            Закрити
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    console.log('User dashboard starting...');
+    try {
+    
+    function switchTab(tabId) {
+      console.log('Switching to tab:', tabId);
+      document.querySelectorAll(".tab-content").forEach((tab) => {
+        tab.classList.remove("active");
+      });
+      document.getElementById(tabId).classList.add("active");
+
+      document.querySelectorAll(".nav-links a").forEach((link) => {
+        link.classList.remove("active");
+      });
+      document.getElementById("nav-" + tabId).classList.add("active");
+    }
+
+    // Calendar Logic
+    let currentDate = new Date(2026, 1, 1);
+    const eventsData = {};
+    {% for p in projects %}
+    eventsData["{{ p.date|date:'Y-m-d' }}"] = [{id: {{ p.id }}, name: "{{ p.name|escapejs }}", org: "{{ p.organiser.get_full_name|default:p.organiser.username|escapejs }}", desc: "Кількість годин: {{ p.hours }} | Потрібно: {% if p.max_volunteers == 0 %}∞{% elif p.current_volunteers >= p.max_volunteers %}волонтерів не потрібно{% else %}{{ p.current_volunteers|default:0 }}/{{ p.max_volunteers }}{% endif %}", max_volunteers: {{ p.max_volunteers }}, current_volunteers: {{ p.current_volunteers|default:0 }}}];
+    {% endfor %}
+    console.log('Events data:', eventsData);
+
+    function renderCalendar() {
+      const grid = document.getElementById("calendar-grid");
+      const monthYear = document.getElementById("current-month-year");
+      const headers = grid.querySelectorAll(".calendar-day-head");
+      grid.innerHTML = "";
+      headers.forEach((h) => grid.appendChild(h));
+
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const monthNames = [
+        "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
+        "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"
+      ];
+      monthYear.innerText = `${monthNames[month]} ${year}`;
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      let startDay = firstDay === 0 ? 6 : firstDay - 1;
+
+      for (let i = 0; i < startDay; i++) {
+        grid.appendChild(document.createElement("div"));
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dayEl = document.createElement("div");
+        dayEl.className = "calendar-day";
+        dayEl.innerHTML = `<strong>${day}</strong>`;
+        const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+        if (eventsData[dateStr]) {
+          eventsData[dateStr].forEach((ev) => {
+            const tag = document.createElement("div");
+            tag.className = "event-tag";
+            tag.innerText = ev.name;
+            dayEl.appendChild(tag);
+          });
+        }
+        dayEl.onclick = () => openModal(dateStr);
+        grid.appendChild(dayEl);
+      }
+    }
+
+    function prevMonth() {
+      currentDate.setMonth(currentDate.getMonth() - 1);
+      renderCalendar();
+    }
+    function nextMonth() {
+      currentDate.setMonth(currentDate.getMonth() + 1);
+      renderCalendar();
+    }
+
+    function openModal(dateStr) {
+      const modal = document.getElementById("event-modal");
+      const dateEl = document.getElementById("modal-date");
+      const infoEl = document.getElementById("event-info");
+
+      dateEl.innerText = dateStr;
+      infoEl.innerHTML = "";
+
+      if (eventsData[dateStr]) {
+        eventsData[dateStr].forEach((ev) => {
+          const isFull = ev.max_volunteers > 0 && ev.current_volunteers >= ev.max_volunteers;
+          const buttonHtml = isFull 
+            ? '<span style="display: inline-block; margin-top: 10px; padding: 8px 16px; background: #9ca3af; color: white; border-radius: 6px; font-size: 14px; cursor: not-allowed;">Місць немає</span>'
+            : `<a href="/apply/${ev.id}/" style="display: inline-block; margin-top: 10px; padding: 8px 16px; background: var(--primary-color); color: white; text-decoration: none; border-radius: 6px; font-size: 14px;">Подати заявку</a>`;
+          infoEl.innerHTML += `<div style="background: #f9fafb; padding: 15px; border-radius: 10px; margin-bottom: 15px; border-left: 4px solid var(--primary-color);">
+            <h4 style="margin: 0 0 10px 0; color: var(--primary-color);">${ev.name}</h4>
+            <p style="margin: 5px 0; color: #666; font-size: 14px;"><i class="fas fa-user" style="margin-right: 5px;"></i>${ev.org}</p>
+            <p style="margin: 5px 0; color: #666; font-size: 14px;">${ev.desc}</p>
+            ${buttonHtml}
+          </div>`;
+        });
+      } else {
+        infoEl.innerHTML = `<div style="text-align: center; padding: 30px; color: #666;">
+          <i class="fas fa-calendar-times" style="font-size: 40px; margin-bottom: 10px; color: #ccc;"></i>
+          <p>На цей день заходів не заплановано.</p>
+        </div>`;
+      }
+      modal.style.display = "flex";
+    }
+
+    function closeModal() {
+      document.getElementById("event-modal").style.display = "none";
+    }
+
+    // User menu toggle
+    function toggleUserMenu(avatar) {
+      var menu = document.getElementById('user-menu');
+      if (menu.style.display === 'block') {
+        menu.style.display = 'none';
+      } else {
+        menu.style.display = 'block';
+      }
+    }
+
+    // Close menu when clicking outside
+    document.addEventListener('click', function(e) {
+      var menu = document.getElementById('user-menu');
+      var avatar = document.querySelector('.avatar');
+      if (menu && !menu.contains(e.target) && !avatar.contains(e.target)) {
+        menu.style.display = 'none';
+      }
+    });
+
+    // Close modal when clicking outside
+    var modal = document.getElementById("event-modal");
+    if (modal) {
+      modal.addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+      });
+    }
+
+    function toggleMobileMenu() {
+      var sidebar = document.querySelector('.sidebar');
+      var overlay = document.querySelector('.mobile-menu-overlay');
+      if (sidebar.classList.contains('mobile-open')) {
+        sidebar.classList.remove('mobile-open');
+        if (overlay) overlay.remove();
+      } else {
+        sidebar.classList.add('mobile-open');
+        var newOverlay = document.createElement('div');
+        newOverlay.className = 'mobile-menu-overlay';
+        newOverlay.onclick = function() {
+          sidebar.classList.remove('mobile-open');
+          this.remove();
+        };
+        document.body.appendChild(newOverlay);
+      }
+    }
+
+    // Close mobile menu when clicking nav link
+    document.querySelectorAll('.nav-links a').forEach(function(link) {
+      link.addEventListener('click', function() {
+        var sidebar = document.querySelector('.sidebar');
+        var overlay = document.querySelector('.mobile-menu-overlay');
+        sidebar.classList.remove('mobile-open');
+        if (overlay) overlay.remove();
+      });
+    });
+
+    // Navigation tab click handlers - using onclick for reliability
+    console.log('Setting up nav handlers...');
+    var userNavTabs = document.querySelectorAll('.nav-tab');
+    console.log('Found nav-tabs:', userNavTabs.length);
+    
+    for (var i = 0; i < userNavTabs.length; i++) {
+        var link = userNavTabs[i];
+        (function(tabId) {
+            link.onclick = function(e) {
+                console.log('Clicked:', tabId);
+                e.preventDefault();
+                switchTab(tabId);
+            };
+        })(link.getAttribute('data-tab'));
+    }
+    
+    renderCalendar();
+    console.log('User dashboard initialized successfully');
+    
+    } catch (err) {
+      console.error('Error in user dashboard:', err);
+    }
+  </script>
+</body>
+
+</html>

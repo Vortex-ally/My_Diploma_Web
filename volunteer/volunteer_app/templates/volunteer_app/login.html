@@ -1,0 +1,58 @@
+{% load static %}
+
+<!doctype html>
+<html lang="uk">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Вхід - Система Волонтерства</title>
+  <link rel="stylesheet" href="{% static 'volunteer_app/auth.css' %}" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+
+<body>
+  <div class="site-brand">
+    <i class="fas fa-hand-holding-heart brand-icon" aria-hidden="true"></i>
+    <div class="brand-name">BoscoVolunteer</div>
+  </div>
+  <div class="auth-container">
+    <div class="auth-header">
+      <h2>З поверненням!</h2>
+      <p>Увійдіть, щоб продовжити роботу</p>
+    </div>
+    <div class="site-brand">
+      <i class="fas fa-hand-holding-heart brand-icon" aria-hidden="true"></i>
+      <div class="brand-name">BoscoVolunteer</div>
+    </div>
+
+    <form method="post" action="{% url 'login' %}">
+      {% csrf_token %}
+
+      <div class="form-group">
+        <label>Email адреса</label>
+        <input type="email" name="email" class="form-control" placeholder="name@example.com" required />
+      </div>
+
+      <div class="form-group">
+        <label>Пароль</label>
+        <input type="password" name="password" class="form-control" placeholder="••••••••" required />
+      </div>
+
+      <button type="submit" class="auth-btn">Увійти</button>
+
+      {% if error %}
+      <div class="form-errors"
+        style="color: #dc3545; background: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+        <p>{{ error }}</p>
+      </div>
+      {% endif %}
+    </form>
+
+    <div class="auth-footer">
+      Немає акаунту? Зверніться до адміністратора.
+    </div>
+  </div>
+</body>
+
+</html>

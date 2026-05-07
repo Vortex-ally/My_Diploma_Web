@@ -1,0 +1,432 @@
+{% load static %}
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Спільноти — BoscoVolunteer</title>
+  <link rel="stylesheet" href="{% static 'volunteer_app/auth.css' %}"/>
+  <link rel="stylesheet" href="{% static 'volunteer_app/dashboard.css' %}"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    /* ── Page layout ── */
+    .page-wrapper {
+      margin-left: var(--sidebar-width);
+      min-height: 100vh;
+      background: transparent;
+    }
+
+    /* ── Sidebar overrides ── */
+    .sidebar-nav a {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-radius: 10px;
+      color: var(--text-secondary); font-weight: 600; font-size: 14px;
+      text-decoration: none; transition: all 0.2s;
+    }
+    .sidebar-nav a:hover, .sidebar-nav a.active {
+      background: #ede9fe; color: var(--primary-color);
+    }
+    .sidebar-nav a i { width: 18px; text-align: center; }
+
+    /* ── Hero ── */
+    .hero {
+      background: transparent;
+      padding: 48px 40px 32px;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-content { position: relative; z-index: 1; }
+    .hero h1 { font-size: 36px; font-weight: 900; margin: 0 0 8px; letter-spacing: -0.5px; text-shadow: 0 2px 16px rgba(0,0,0,.3); }
+    .hero p { font-size: 16px; opacity: 0.75; margin: 0 0 28px; }
+    .hero-stats { display: flex; gap: 32px; }
+    .hero-stat {
+      text-align: center;
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 14px;
+      padding: 14px 24px;
+    }
+    .hero-stat .num { font-size: 28px; font-weight: 800; }
+    .hero-stat .lbl { font-size: 11px; opacity: 0.7; text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 40px 24px; gap: 16px; flex-wrap: wrap;
+    }
+    .search-wrap {
+      position: relative; flex: 1; max-width: 360px;
+    }
+    .search-wrap i {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: rgba(255,255,255,0.5); font-size: 14px;
+    }
+    .search-wrap input {
+      width: 100%; padding: 11px 14px 11px 40px;
+      border: 1.5px solid rgba(255,255,255,0.15); border-radius: 12px;
+      font-size: 14px; outline: none;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      backdrop-filter: blur(10px);
+      transition: border-color .2s, box-shadow .2s;
+      box-sizing: border-box;
+    }
+    .search-wrap input::placeholder { color: rgba(255,255,255,0.4); }
+    .search-wrap input:focus { border-color: rgba(255,255,255,0.4); box-shadow: 0 0 0 3px rgba(255,255,255,.08); }
+    .create-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: white; border: none; padding: 11px 22px;
+      border-radius: 12px; font-size: 14px; font-weight: 700;
+      cursor: pointer; white-space: nowrap; transition: opacity .2s, transform .2s;
+      box-shadow: 0 4px 14px rgba(79,70,229,.35);
+    }
+    .create-btn:hover { opacity: .9; transform: translateY(-1px); }
+
+    /* ── Grid ── */
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; padding: 0 40px 40px; }
+    @media (max-width: 1100px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 700px)  { .grid { grid-template-columns: 1fr; } }
+
+    /* ── Org card ── */
+    .org-card {
+      background: rgba(255,255,255,0.10);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 20px; overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,.25);
+      transition: transform .25s, box-shadow .25s, background .25s;
+      text-decoration: none; color: inherit; display: flex; flex-direction: column;
+    }
+    .org-card:hover {
+      transform: translateY(-6px);
+      background: rgba(255,255,255,0.16);
+      box-shadow: 0 20px 48px rgba(0,0,0,.35);
+    }
+
+    .card-cover {
+      height: 90px; position: relative; overflow: hidden;
+    }
+    .card-cover .cover-pattern {
+      position: absolute; inset: 0;
+      opacity: .12;
+      background-image: repeating-linear-gradient(45deg, white 0, white 1px, transparent 0, transparent 50%);
+      background-size: 12px 12px;
+    }
+
+    .card-avatar {
+      position: absolute; bottom: -22px; left: 24px;
+      width: 48px; height: 48px; border-radius: 14px;
+      background: white; display: flex; align-items: center; justify-content: center;
+      font-size: 22px; box-shadow: 0 4px 14px rgba(0,0,0,.15);
+    }
+
+    .card-body { padding: 32px 24px 20px; flex: 1; display: flex; flex-direction: column; }
+    .card-site-tag {
+      display: inline-block; font-size: 11px; font-weight: 700;
+      letter-spacing: .5px; text-transform: uppercase;
+      padding: 3px 9px; border-radius: 6px; margin-bottom: 8px;
+      background: rgba(255,255,255,0.15) !important;
+      color: rgba(255,255,255,0.9) !important;
+    }
+    .card-name { font-size: 17px; font-weight: 800; color: white; margin-bottom: 6px; }
+    .card-desc { font-size: 13px; color: rgba(255,255,255,0.65); line-height: 1.55; flex: 1; }
+    .card-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.12);
+    }
+    .card-owner { font-size: 12px; color: rgba(255,255,255,0.55); display: flex; align-items: center; gap: 5px; }
+    .card-owner img { width: 20px; height: 20px; border-radius: 50%; }
+    .card-arrow {
+      width: 30px; height: 30px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; transition: background .2s, color .2s;
+    }
+    .org-card:hover .card-arrow { color: white; }
+
+    /* ── Empty ── */
+    .empty-state {
+      grid-column: 1/-1; text-align: center; padding: 80px 20px;
+    }
+    .empty-icon {
+      width: 80px; height: 80px; border-radius: 20px;
+      background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.8);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px; margin: 0 auto 20px;
+      border: 1px solid rgba(255,255,255,0.18);
+    }
+    .empty-state h3 { font-size: 20px; font-weight: 800; color: white; margin: 0 0 8px; }
+    .empty-state p { color: rgba(255,255,255,0.55); font-size: 14px; margin: 0 0 24px; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.6); z-index: 2000;
+      align-items: center; justify-content: center;
+      backdrop-filter: blur(8px);
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: white; border-radius: 24px; width: 500px; max-width: 95%;
+      box-shadow: 0 24px 60px rgba(79,70,229,.2);
+      animation: slideUp .3s ease;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .modal-head {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      padding: 28px 32px 24px; border-radius: 24px 24px 0 0; color: white;
+    }
+    .modal-head h2 { font-size: 20px; font-weight: 800; margin: 0 0 4px; }
+    .modal-head p  { font-size: 13px; opacity: .8; margin: 0; }
+    .modal-body { padding: 28px 32px 32px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .fg { margin-bottom: 18px; }
+    .fg label { display: block; font-size: 12px; font-weight: 700; color: #374151; margin-bottom: 7px; text-transform: uppercase; letter-spacing: .4px; }
+    .fg input, .fg textarea, .fg select {
+      width: 100%; padding: 11px 14px; border: 1.5px solid #e5e7eb;
+      border-radius: 10px; font-size: 14px; outline: none; font-family: inherit;
+      transition: border-color .2s, box-shadow .2s; box-sizing: border-box;
+    }
+    .fg input:focus, .fg textarea:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,.08); }
+    .modal-actions { display: flex; gap: 12px; margin-top: 4px; }
+    .btn-cancel { flex: 1; padding: 12px; background: #f3f4f6; color: #374151; border: none; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background .2s; }
+    .btn-cancel:hover { background: #e5e7eb; }
+    .btn-submit { flex: 2; padding: 12px; background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; border: none; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 14px rgba(79,70,229,.3); transition: opacity .2s; }
+    .btn-submit:hover { opacity: .9; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .page-wrapper { margin-left: 0; }
+      .hero { padding: 32px 20px 28px; }
+      .hero h1 { font-size: 24px; }
+      .toolbar { padding: 16px 20px; }
+      .grid { padding: 0 20px 32px; }
+      .hero-stats { gap: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="logo">
+    <div class="brand-icon"><i class="fas fa-hand-holding-heart"></i></div>
+    <div class="logo-text">
+      <span class="brand-name">BoscoVolunteer</span>
+      <span class="brand-tag">Спільноти</span>
+    </div>
+  </div>
+  <ul class="nav-links sidebar-nav">
+    <li><a href="{% url 'dashboard' %}"><i class="fas fa-th-large"></i> Дашборд</a></li>
+    <li><a href="{% url 'organization_list' %}" class="active"><i class="fas fa-building"></i> Спільноти</a></li>
+    <li><a href="{% url 'events' %}"><i class="fas fa-calendar"></i> Всі події</a></li>
+    <li><a href="{% url 'chat' %}"><i class="fas fa-comments"></i> Чат</a></li>
+    <li style="margin-top:40px">
+      <a href="{% url 'logout' %}" style="color:#ef4444"><i class="fas fa-sign-out-alt"></i> Вихід</a>
+    </li>
+  </ul>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-content">
+      <h1><i class="fas fa-layer-group"></i> Спільноти</h1>
+      <p>Волонтерські організації та їх заходи на одній платформі</p>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="num">{{ organizations.count }}</div>
+          <div class="lbl">Спільнот</div>
+        </div>
+        <div class="hero-stat">
+          <div class="num">{{ user_orgs.count }}</div>
+          <div class="lbl">Мої спільноти</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-wrap">
+      <i class="fas fa-search"></i>
+      <input type="text" id="search-input" placeholder="Пошук спільноти..." oninput="filterCards()"/>
+    </div>
+    <button class="create-btn" onclick="openModal()">
+      <i class="fas fa-plus"></i> Нова спільнота
+    </button>
+  </div>
+
+  <!-- Cards grid -->
+  <div class="grid" id="org-grid">
+    {% for org in organizations %}
+    {% with idx=forloop.counter0 %}
+    {% with colors="4f46e5,7c3aed,0891b2,059669,dc2626,d97706,be185d,0d9488" %}
+    {% with color=colors|slice:idx %}
+    <a href="{% url 'organization_detail' org.slug %}" class="org-card" data-name="{{ org.name|lower }}">
+
+      <!-- Cover -->
+      {% if idx|divisibleby:7 %}{% with bg="#be185d" %}
+      <div class="card-cover" style="background:linear-gradient(135deg,#be185d,#9d174d);">
+        <div class="cover-pattern"></div>
+        <div class="card-avatar" style="color:#be185d"><i class="fas fa-building"></i></div>
+      </div>{% endwith %}
+      {% elif idx|divisibleby:6 %}
+      <div class="card-cover" style="background:linear-gradient(135deg,#0d9488,#0f766e);">
+        <div class="cover-pattern"></div>
+        <div class="card-avatar" style="color:#0d9488"><i class="fas fa-leaf"></i></div>
+      </div>
+      {% elif idx|divisibleby:5 %}
+      <div class="card-cover" style="background:linear-gradient(135deg,#d97706,#b45309);">
+        <div class="cover-pattern"></div>
+        <div class="card-avatar" style="color:#d97706"><i class="fas fa-star"></i></div>
+      </div>
+      {% elif idx|divisibleby:4 %}
+      <div class="card-cover" style="background:linear-gradient(135deg,#dc2626,#b91c1c);">
+        <div class="cover-pattern"></div>
+        <div class="card-avatar" style="color:#dc2626"><i class="fas fa-heart"></i></div>
+      </div>
+      {% elif idx|divisibleby:3 %}
+      <div class="card-cover" style="background:linear-gradient(135deg,#059669,#047857);">
+        <div class="cover-pattern"></div>
+        <div class="card-avatar" style="color:#059669"><i class="fas fa-users"></i></div>
+      </div>
+      {% elif idx|divisibleby:2 %}
+      <div class="card-cover" style="background:linear-gradient(135deg,#0891b2,#0e7490);">
+        <div class="cover-pattern"></div>
+        <div class="card-avatar" style="color:#0891b2"><i class="fas fa-globe"></i></div>
+      </div>
+      {% elif idx|divisibleby:1 %}
+      <div class="card-cover" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);">
+        <div class="cover-pattern"></div>
+        <div class="card-avatar" style="color:#7c3aed"><i class="fas fa-hands-helping"></i></div>
+      </div>
+      {% else %}
+      <div class="card-cover" style="background:linear-gradient(135deg,#4f46e5,#4338ca);">
+        <div class="cover-pattern"></div>
+        <div class="card-avatar" style="color:#4f46e5"><i class="fas fa-building"></i></div>
+      </div>
+      {% endif %}
+
+      <div class="card-body">
+        {% if idx|divisibleby:7 %}
+          <span class="card-site-tag" style="background:#fce7f3;color:#be185d">{{ org.site_name }}</span>
+        {% elif idx|divisibleby:6 %}
+          <span class="card-site-tag" style="background:#ccfbf1;color:#0d9488">{{ org.site_name }}</span>
+        {% elif idx|divisibleby:5 %}
+          <span class="card-site-tag" style="background:#fef3c7;color:#d97706">{{ org.site_name }}</span>
+        {% elif idx|divisibleby:4 %}
+          <span class="card-site-tag" style="background:#fee2e2;color:#dc2626">{{ org.site_name }}</span>
+        {% elif idx|divisibleby:3 %}
+          <span class="card-site-tag" style="background:#d1fae5;color:#059669">{{ org.site_name }}</span>
+        {% elif idx|divisibleby:2 %}
+          <span class="card-site-tag" style="background:#cffafe;color:#0891b2">{{ org.site_name }}</span>
+        {% elif idx|divisibleby:1 %}
+          <span class="card-site-tag" style="background:#ede9fe;color:#7c3aed">{{ org.site_name }}</span>
+        {% else %}
+          <span class="card-site-tag" style="background:#e0e7ff;color:#4f46e5">{{ org.site_name }}</span>
+        {% endif %}
+
+        <div class="card-name">{{ org.name }}</div>
+        <div class="card-desc">
+          {% if org.description %}{{ org.description|truncatechars:90 }}
+          {% else %}<span style="color:#d1d5db;font-style:italic">Опис відсутній</span>{% endif %}
+        </div>
+        <div class="card-footer">
+          <div class="card-owner">
+            <img src="https://ui-avatars.com/api/?name={{ org.owner.get_full_name|default:org.owner.username|urlencode }}&size=20&background=e0e7ff&color=4f46e5" alt="">
+            {{ org.owner.get_full_name|default:org.owner.username }}
+          </div>
+          {% if idx|divisibleby:7 %}
+            <div class="card-arrow" style="background:#fce7f3;color:#be185d"><i class="fas fa-arrow-right"></i></div>
+          {% elif idx|divisibleby:6 %}
+            <div class="card-arrow" style="background:#ccfbf1;color:#0d9488"><i class="fas fa-arrow-right"></i></div>
+          {% elif idx|divisibleby:5 %}
+            <div class="card-arrow" style="background:#fef3c7;color:#d97706"><i class="fas fa-arrow-right"></i></div>
+          {% elif idx|divisibleby:4 %}
+            <div class="card-arrow" style="background:#fee2e2;color:#dc2626"><i class="fas fa-arrow-right"></i></div>
+          {% elif idx|divisibleby:3 %}
+            <div class="card-arrow" style="background:#d1fae5;color:#059669"><i class="fas fa-arrow-right"></i></div>
+          {% elif idx|divisibleby:2 %}
+            <div class="card-arrow" style="background:#cffafe;color:#0891b2"><i class="fas fa-arrow-right"></i></div>
+          {% else %}
+            <div class="card-arrow" style="background:#ede9fe;color:#7c3aed"><i class="fas fa-arrow-right"></i></div>
+          {% endif %}
+        </div>
+      </div>
+    </a>
+    {% endwith %}{% endwith %}{% endwith %}
+    {% empty %}
+    <div class="empty-state">
+      <div class="empty-icon"><i class="fas fa-building"></i></div>
+      <h3>Спільнот ще немає</h3>
+      <p>Створіть першу спільноту, щоб об'єднати волонтерів</p>
+      <button class="create-btn" onclick="openModal()" style="margin: 0 auto;">
+        <i class="fas fa-plus"></i> Створити першу спільноту
+      </button>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Create modal -->
+<div class="modal-overlay" id="createModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2><i class="fas fa-plus-circle"></i> Нова спільнота</h2>
+      <p>Заповніть дані — і спільнота з'явиться на платформі</p>
+    </div>
+    <div class="modal-body">
+      <form method="post" action="{% url 'create_organization' %}">
+        {% csrf_token %}
+        <div class="form-row">
+          <div class="fg">
+            <label>Назва організації *</label>
+            <input type="text" name="name" placeholder="Наприклад: Bosko Youth" required/>
+          </div>
+          <div class="fg">
+            <label>Назва сайту</label>
+            <input type="text" name="site_name" placeholder="BoscoVolunteer" value="BoscoVolunteer"/>
+          </div>
+        </div>
+        <div class="fg">
+          <label>Опис</label>
+          <textarea name="description" rows="3" placeholder="Коротко про вашу спільноту, її цілі та напрям діяльності..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" onclick="closeModal()">
+            <i class="fas fa-times"></i> Скасувати
+          </button>
+          <button type="submit" class="btn-submit">
+            <i class="fas fa-check"></i> Створити спільноту
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function openModal()  { document.getElementById('createModal').classList.add('open'); }
+function closeModal() { document.getElementById('createModal').classList.remove('open'); }
+
+document.getElementById('createModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+function filterCards() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  document.querySelectorAll('.org-card').forEach(card => {
+    card.style.display = card.dataset.name.includes(q) ? '' : 'none';
+  });
+}
+</script>
+</body>
+</html>

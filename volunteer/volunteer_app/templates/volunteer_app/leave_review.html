@@ -1,0 +1,82 @@
+{% load static %}
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Залишити відгук — BoscoVolunteer</title>
+  <link rel="stylesheet" href="{% static 'volunteer_app/auth.css' %}"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    body { background: #f5f3ff; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .review-card {
+      background: white; border-radius: 20px; padding: 40px;
+      max-width: 500px; width: 100%; box-shadow: 0 20px 60px rgba(79,70,229,0.12);
+    }
+    .event-info {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: white; border-radius: 12px; padding: 18px 20px; margin-bottom: 28px;
+    }
+    .event-info .event-name { font-size: 18px; font-weight: 700; }
+    .event-info .event-date { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+    h2 { font-size: 22px; font-weight: 800; color: #1e1b4b; margin: 0 0 24px; }
+    .stars-group { display: flex; gap: 10px; margin-bottom: 8px; }
+    .stars-group input[type="radio"] { display: none; }
+    .stars-group label {
+      font-size: 32px; cursor: pointer; color: #d1d5db; transition: color 0.15s;
+    }
+    .stars-group input[type="radio"]:checked ~ label,
+    .stars-group label:hover,
+    .stars-group label:hover ~ label { color: #f59e0b; }
+    .stars-group { flex-direction: row-reverse; justify-content: flex-end; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; }
+    .form-group textarea {
+      width: 100%; padding: 12px 14px; border: 1.5px solid #e5e7eb;
+      border-radius: 10px; font-size: 14px; resize: vertical; outline: none;
+      transition: border-color 0.2s; box-sizing: border-box; font-family: inherit;
+    }
+    .form-group textarea:focus { border-color: #4f46e5; }
+    .submit-btn {
+      width: 100%; padding: 14px; background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 700;
+      cursor: pointer; transition: opacity 0.2s;
+    }
+    .submit-btn:hover { opacity: 0.9; }
+    .back-link { display: block; text-align: center; margin-top: 14px; color: #6b7280; font-size: 14px; text-decoration: none; }
+    .back-link:hover { color: #4f46e5; }
+  </style>
+</head>
+<body>
+<div class="review-card">
+  <div class="event-info">
+    <div class="event-name"><i class="fas fa-calendar-check"></i> {{ event.name }}</div>
+    <div class="event-date">{{ event.date|date:"d.m.Y H:i" }} · {{ event.hours }} год</div>
+  </div>
+
+  <h2><i class="fas fa-star" style="color:#f59e0b"></i> Ваш відгук</h2>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-group">
+      <label>Оцінка</label>
+      <div class="stars-group">
+        {% for i in "54321" %}
+        <input type="radio" name="rating" id="star{{ i }}" value="{{ i }}"
+               {% if i == "5" %}checked{% endif %}/>
+        <label for="star{{ i }}">★</label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Коментар (необов'язково)</label>
+      <textarea name="comment" rows="4" placeholder="Розкажіть про свій досвід участі у цьому заході..."></textarea>
+    </div>
+    <button type="submit" class="submit-btn">
+      <i class="fas fa-paper-plane"></i> Надіслати відгук
+    </button>
+  </form>
+  <a href="{% url 'dashboard' %}" class="back-link">← Повернутись без відгуку</a>
+</div>
+</body>
+</html>

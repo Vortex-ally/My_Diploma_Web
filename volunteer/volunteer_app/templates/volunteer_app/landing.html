@@ -1,0 +1,105 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BoscoVolunteer - Система волонтерства</title>
+    <link rel="stylesheet" href="{% static 'volunteer_app/landing.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="logo">
+            <i class="fas fa-hand-holding-heart brand-icon" aria-hidden="true"></i>
+            <div class="brand-name">BoscoVolunteer</div>
+        </div>
+        <div class="hamburger" onclick="toggleMenu()" aria-label="Menu">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <ul class="nav-links" id="navLinks">
+            <li><a href="#home">Головна</a></li>
+            <li><a href="#about">Про нас</a></li>
+            <li><a href="#features">Можливості</a></li>
+            <li><a href="#contact">Контакти</a></li>
+        </ul>
+        <div class="auth-buttons">
+            <a href="{% url 'login' %}" class="btn btn-outline">Вхід</a>
+        </div>
+    </nav>
+
+    <section class="hero" id="home">
+        <div class="hero-text">
+            <h1>Змінюйте світ разом з нами</h1>
+            <p>Приєднуйтесь до найбільшої платформи волонтерства. Знаходьте можливості, відслідковуйте свій вплив та
+                розвивайте громаду.</p>
+            <div class="hero-btns">
+                <a href="{% url 'login' %}" class="btn btn-primary">Приєднатись зараз</a>
+                <a href="#about" class="btn btn-outline">Дізнатись більше</a>
+            </div>
+        </div>
+        <div class="hero-image">
+            <img src="{% static 'volunteer_app/image.png' %}"
+                alt="Volunteering Illustration">
+        </div>
+    </section>
+
+    <section class="features" id="features">
+        <h2>Чому обирають нас?</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-users"></i></div>
+                <h3>Велика спільнота</h3>
+                <p>Тисячі волонтерів та організацій вже працюють разом над спільними цілями.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+                <h3>Відстеження прогресу</h3>
+                <p>Зручна система обліку годин та досягнень для кожного волонтера.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-certificate"></i></div>
+                <h3>Сертифікація</h3>
+                <p>Отримуйте офіційні сертифікати та підтвердження вашої волонтерської діяльності.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-content">
+            <div class="logo">BoscoVolunteer</div>
+            <p>© 2026 Всі права захищено.</p>
+        </div>
+        <div class="social-links">
+            <a href="#"><i class="fab fa-facebook"></i></a>
+            <a href="#"><i class="fab fa-instagram"></i></a>
+            <a href="#"><i class="fab fa-telegram"></i></a>
+        </div>
+    </footer>
+
+    <script>
+        function toggleMenu() {
+            const navLinks = document.getElementById('navLinks');
+            const hamburger = document.querySelector('.hamburger');
+            navLinks.classList.toggle('active');
+            hamburger.classList.toggle('active');
+        }
+
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', () => {
+                const navLinks = document.getElementById('navLinks');
+                const hamburger = document.querySelector('.hamburger');
+                navLinks.classList.remove('active');
+                hamburger.classList.remove('active');
+            });
+        });
+    </script>
+
+</body>
+</html>

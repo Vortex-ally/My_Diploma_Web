@@ -1,0 +1,436 @@
+{% load static %}
+
+<!doctype html>
+<html lang="uk">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Шаблони - BoscoVolunteer</title>
+  <link rel="stylesheet" href="{% static 'volunteer_app/auth.css' %}" />
+  <link rel="stylesheet" href="{% static 'volunteer_app/dashboard.css' %}" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+    }
+
+    .tab-btn {
+      padding: 10px 20px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      background: #f3f4f6;
+    }
+
+    .tab-btn.active {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .template-card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .template-info h4 {
+      margin: 0 0 5px 0;
+      color: var(--text-primary);
+    }
+
+    .template-info p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .template-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-sm {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .btn-edit {
+      background: #4f46e5;
+      color: white;
+    }
+
+    .btn-delete {
+      background: #ef4444;
+      color: white;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      width: 450px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 10px 15px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .form-control:focus {
+      border-color: var(--primary-color);
+    }
+
+    .btn-action {
+      padding: 10px 20px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      width: 100%;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="sidebar">
+    <div class="logo">
+      <i class="fas fa-hand-holding-heart"></i>
+      <span>{% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}</span>
+    </div>
+    <ul class="nav-links">
+      <li>
+        <a href="{% url 'dashboard' %}"><i class="fas fa-tachometer-alt"></i> На головну</a>
+      </li>
+      <li style="margin-top: 50px">
+        <a href="{% url 'logout' %}" style="color: #ef4444"><i class="fas fa-sign-out-alt"></i> Вихід</a>
+      </li>
+    </ul>
+  </div>
+
+  <div class="main-content">
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <div class="brand">
+          <h2>Управління шаблонами</h2>
+          <p class="subtitle">Створюйте та редагуйте шаблони для швидкого створення заходів</p>
+        </div>
+      </div>
+    </header>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('groups')">Групи</button>
+      <button class="tab-btn" onclick="switchTab('events')">Заходи</button>
+      <button class="tab-btn" onclick="switchTab('work-types')">Типи робіт</button>
+      <button class="tab-btn" onclick="switchTab('hours')">Години</button>
+    </div>
+
+    <!-- Groups Tab -->
+    <div id="groups" class="tab-content active">
+      <button class="btn-action" style="width: auto; margin-bottom: 20px;" onclick="openModal('group-modal')">
+        <i class="fas fa-plus"></i> Додати групу
+      </button>
+      
+      {% for gt in group_templates %}
+      <div class="template-card">
+        <div class="template-info">
+          <h4>{{ gt.name }}</h4>
+          <p>{{ gt.course }} курс</p>
+        </div>
+        <div class="template-actions">
+          <form method="post" action="{% url 'delete_template' %}" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="type" value="group">
+            <input type="hidden" name="id" value="{{ gt.id }}">
+            <button type="submit" class="btn-sm btn-delete" onclick="return confirm('Видалити?')">
+              <i class="fas fa-trash"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+      {% empty %}
+      <p style="color: var(--text-secondary); text-align: center; padding: 40px;">
+        <i class="fas fa-folder-open" style="font-size: 48px; margin-bottom: 15px; display: block;"></i>
+        Немає шаблонів груп
+      </p>
+      {% endfor %}
+    </div>
+
+    <!-- Events Tab -->
+    <div id="events" class="tab-content">
+      <button class="btn-action" style="width: auto; margin-bottom: 20px;" onclick="openModal('event-modal')">
+        <i class="fas fa-plus"></i> Додати шаблон заходу
+      </button>
+      
+      {% for et in event_templates %}
+      <div class="template-card">
+        <div class="template-info">
+          <h4>{{ et.name }}</h4>
+          <p>{{ et.location }} • {{ et.default_hours }} год</p>
+        </div>
+        <div class="template-actions">
+          <form method="post" action="{% url 'delete_template' %}" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="type" value="event">
+            <input type="hidden" name="id" value="{{ et.id }}">
+            <button type="submit" class="btn-sm btn-delete" onclick="return confirm('Видалити?')">
+              <i class="fas fa-trash"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+      {% empty %}
+      <p style="color: var(--text-secondary); text-align: center; padding: 40px;">
+        <i class="fas fa-folder-open" style="font-size: 48px; margin-bottom: 15px; display: block;"></i>
+        Немає шаблонів заходів
+      </p>
+      {% endfor %}
+    </div>
+
+    <!-- Work Types Tab -->
+    <div id="work-types" class="tab-content">
+      <button class="btn-action" style="width: auto; margin-bottom: 20px;" onclick="openModal('work-type-modal')">
+        <i class="fas fa-plus"></i> Додати тип роботи
+      </button>
+      
+      {% for wt in work_type_templates %}
+      <div class="template-card">
+        <div class="template-info">
+          <h4>{{ wt.name }}</h4>
+          <p>{{ wt.description|truncatechars:50 }}</p>
+        </div>
+        <div class="template-actions">
+          <form method="post" action="{% url 'delete_template' %}" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="type" value="work_type">
+            <input type="hidden" name="id" value="{{ wt.id }}">
+            <button type="submit" class="btn-sm btn-delete" onclick="return confirm('Видалити?')">
+              <i class="fas fa-trash"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+      {% empty %}
+      <p style="color: var(--text-secondary); text-align: center; padding: 40px;">
+        <i class="fas fa-folder-open" style="font-size: 48px; margin-bottom: 15px; display: block;"></i>
+        Немає типів робіт
+      </p>
+      {% endfor %}
+    </div>
+
+    <!-- Hours Tab -->
+    <div id="hours" class="tab-content">
+      <button class="btn-action" style="width: auto; margin-bottom: 20px;" onclick="openModal('hours-modal')">
+        <i class="fas fa-plus"></i> Додати шаблон годин
+      </button>
+      
+      {% for ht in hours_templates %}
+      <div class="template-card">
+        <div class="template-info">
+          <h4>{{ ht.name }}</h4>
+          <p>{{ ht.hours }} годин</p>
+        </div>
+        <div class="template-actions">
+          <form method="post" action="{% url 'delete_template' %}" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="type" value="hours">
+            <input type="hidden" name="id" value="{{ ht.id }}">
+            <button type="submit" class="btn-sm btn-delete" onclick="return confirm('Видалити?')">
+              <i class="fas fa-trash"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+      {% empty %}
+      <p style="color: var(--text-secondary); text-align: center; padding: 40px;">
+        <i class="fas fa-folder-open" style="font-size: 48px; margin-bottom: 15px; display: block;"></i>
+        Немає шаблонів годин
+      </p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Group Modal -->
+  <div id="group-modal" class="modal">
+    <div class="modal-content">
+      <h3>Додати групу</h3>
+      <form method="post" action="{% url 'create_template' %}">
+        {% csrf_token %}
+        <input type="hidden" name="type" value="group">
+        <div class="form-group">
+          <label>Назва групи</label>
+          <input type="text" name="name" class="form-control" placeholder="Наприклад, ПІ-21" required>
+        </div>
+        <div class="form-group">
+          <label>Курс</label>
+          <select name="course" class="form-control" required>
+            <option value="1">1 курс</option>
+            <option value="2">2 курс</option>
+          </select>
+        </div>
+        <button type="submit" class="btn-action">Додати</button>
+        <button type="button" class="btn-action" style="margin-top: 10px; background: #6b7280;" onclick="closeModal('group-modal')">Скасувати</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Event Modal -->
+  <div id="event-modal" class="modal">
+    <div class="modal-content">
+      <h3>Додати шаблон заходу</h3>
+      <form method="post" action="{% url 'create_template' %}">
+        {% csrf_token %}
+        <input type="hidden" name="type" value="event">
+        <div class="form-group">
+          <label>Назва</label>
+          <input type="text" name="name" class="form-control" placeholder="Наприклад, Кафе 'Затишок'" required>
+        </div>
+        <div class="form-group">
+          <label>Місце проведення</label>
+          <input type="text" name="location" class="form-control" placeholder="Наприклад, вул. Шевченка 15" required>
+        </div>
+        <div class="form-group">
+          <label>Опис</label>
+          <textarea name="description" class="form-control" rows="3" placeholder="Опис роботи..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Години за замовчуванням</label>
+          <input type="number" name="default_hours" class="form-control" placeholder="4" required>
+        </div>
+        <button type="submit" class="btn-action">Додати</button>
+        <button type="button" class="btn-action" style="margin-top: 10px; background: #6b7280;" onclick="closeModal('event-modal')">Скасувати</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Work Type Modal -->
+  <div id="work-type-modal" class="modal">
+    <div class="modal-content">
+      <h3>Додати тип роботи</h3>
+      <form method="post" action="{% url 'create_template' %}">
+        {% csrf_token %}
+        <input type="hidden" name="type" value="work_type">
+        <div class="form-group">
+          <label>Назва</label>
+          <input type="text" name="name" class="form-control" placeholder="Наприклад, Прибирання території" required>
+        </div>
+        <div class="form-group">
+          <label>Опис</label>
+          <textarea name="description" class="form-control" rows="3" placeholder="Опис роботи..."></textarea>
+        </div>
+        <button type="submit" class="btn-action">Додати</button>
+        <button type="button" class="btn-action" style="margin-top: 10px; background: #6b7280;" onclick="closeModal('work-type-modal')">Скасувати</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Hours Modal -->
+  <div id="hours-modal" class="modal">
+    <div class="modal-content">
+      <h3>Додати шаблон годин</h3>
+      <form method="post" action="{% url 'create_template' %}">
+        {% csrf_token %}
+        <input type="hidden" name="type" value="hours">
+        <div class="form-group">
+          <label>Назва</label>
+          <input type="text" name="name" class="form-control" placeholder="Наприклад, Стандартна зміна" required>
+        </div>
+        <div class="form-group">
+          <label>Години</label>
+          <input type="number" name="hours" class="form-control" placeholder="4" required>
+        </div>
+        <div class="form-group">
+          <label>Опис</label>
+          <input type="text" name="description" class="form-control" placeholder="Опис (необов'язково)">
+        </div>
+        <button type="submit" class="btn-action">Додати</button>
+        <button type="button" class="btn-action" style="margin-top: 10px; background: #6b7280;" onclick="closeModal('hours-modal')">Скасувати</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+    }
+
+    function openModal(id) {
+      document.getElementById(id).style.display = 'flex';
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).style.display = 'none';
+    }
+
+    document.querySelectorAll('.modal').forEach(modal => {
+      modal.addEventListener('click', function(e) {
+        if (e.target === this) this.style.display = 'none';
+      });
+    });
+  </script>
+</body>
+
+</html>

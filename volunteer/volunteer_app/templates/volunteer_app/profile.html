@@ -1,0 +1,243 @@
+{% load static %}
+
+<!doctype html>
+<html lang="uk">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Профіль - BoscoVolunteer</title>
+  <link rel="stylesheet" href="{% static 'volunteer_app/auth.css' %}" />
+  <link rel="stylesheet" href="{% static 'volunteer_app/dashboard.css' %}" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    .profile-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .profile-header {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .profile-avatar {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      margin: 0 auto 15px;
+      overflow: hidden;
+      border: 4px solid var(--primary-color);
+    }
+    .profile-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .profile-name {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+    .profile-role {
+      display: inline-block;
+      padding: 5px 15px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .role-volunteer { background: #e0e7ff; color: #4f46e5; }
+    .role-organiser { background: #fce7f3; color: #ec4899; }
+    .role-admin { background: #fee2e2; color: #ef4444; }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      text-align: center;
+    }
+    .stat-card h3 {
+      font-size: 32px;
+      margin-bottom: 5px;
+      color: var(--primary-color);
+    }
+    .stat-card p {
+      color: #666;
+      font-size: 14px;
+    }
+    
+    .info-card {
+      background: white;
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    }
+    .info-card h3 {
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #f5f5f5;
+    }
+    .info-row:last-child {
+      border-bottom: none;
+    }
+    .info-label {
+      color: #666;
+    }
+    .info-value {
+      font-weight: 600;
+    }
+    
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: var(--primary-color);
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    
+    .messages {
+      max-width: 800px;
+      margin: 0 auto 20px;
+    }
+  </style>
+</head>
+
+<body class="profile-page">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="logo">
+      <i class="fas fa-hand-holding-heart"></i>
+      <span>{% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}
+        <small style="font-size: 10px; display: block; margin-top: -5px">
+          {% if profile.role == 'volunteer' %}ВОЛОНТЕР{% elif profile.role == 'organiser' %}ОРГАНІЗАТОР{% elif profile.role == 'admin' %}АДМІН{% endif %}
+        </small>
+      </span>
+    </div>
+    <ul class="nav-links">
+      <li>
+        <a href="{% url 'dashboard' %}"><i class="fas fa-arrow-left"></i> <span>Назад</span></a>
+      </li>
+      <li>
+        <a href="{% url 'profile' %}" style="background: #eef2ff; color: var(--primary-color);"><i class="fas fa-user"></i> <span>Профіль</span></a>
+      </li>
+      <li>
+        <a href="{% url 'settings' %}"><i class="fas fa-cog"></i> <span>Налаштування</span></a>
+      </li>
+      <li style="margin-top: 50px">
+        <a href="{% url 'logout' %}" style="color: #ef4444"><i class="fas fa-sign-out-alt"></i> <span>Вихід</span></a>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <a href="{% url 'dashboard' %}" class="back-btn">
+      <i class="fas fa-arrow-left"></i> Назад до панелі
+    </a>
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Menu">
+      <i class="fas fa-bars"></i>
+    </button>
+    
+    {% if messages %}
+    <div class="messages">
+      {% for message in messages %}
+      <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %}">
+        {{ message }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    
+    <div class="profile-container">
+      <div class="profile-header">
+        <div class="profile-avatar">
+          <img src="https://ui-avatars.com/api/?name={% if user.get_full_name %}{{ user.get_full_name|escapejs }}{% else %}{{ user.username|escapejs }}{% endif %}&background=4f46e5&color=fff&size=200" alt="Avatar">
+        </div>
+        <h1 class="profile-name">{% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}</h1>
+        <span class="profile-role role-{{ profile.role }}">
+          {% if profile.role == 'volunteer' %}Волонтер{% elif profile.role == 'organiser' %}Організатор{% elif profile.role == 'admin' %}Адміністратор{% endif %}
+        </span>
+      </div>
+      
+      {% if profile.role == 'volunteer' %}
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h3>{{ total_events|default:0 }}</h3>
+          <p>Подій</p>
+        </div>
+        <div class="stat-card">
+          <h3>{{ total_hours|default:0 }}</h3>
+          <p>Годин</p>
+        </div>
+      </div>
+      {% endif %}
+      
+      <div class="info-card">
+        <h3><i class="fas fa-info-circle"></i> Інформація профілю</h3>
+        <div class="info-row">
+          <span class="info-label">Email</span>
+          <span class="info-value">{{ user.email }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Ім'я</span>
+          <span class="info-value">{% if user.first_name %}{{ user.first_name }}{% else %}—{% endif %}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Прізвище</span>
+          <span class="info-value">{% if user.last_name %}{{ user.last_name }}{% else %}—{% endif %}</span>
+        </div>
+        {% if profile.role == 'volunteer' and profile.group_name %}
+        <div class="info-row">
+          <span class="info-label">Група</span>
+          <span class="info-value">{{ profile.group_name }}</span>
+        </div>
+        {% endif %}
+        <div class="info-row">
+          <span class="info-label">Дата реєстрації</span>
+          <span class="info-value">{{ user.date_joined|date:"d.m.Y" }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    function toggleMobileMenu() {
+      var sidebar = document.querySelector('.sidebar');
+      var overlay = document.querySelector('.mobile-menu-overlay');
+      if (sidebar.classList.contains('mobile-open')) {
+        sidebar.classList.remove('mobile-open');
+        if (overlay) overlay.remove();
+      } else {
+        sidebar.classList.add('mobile-open');
+        var newOverlay = document.createElement('div');
+        newOverlay.className = 'mobile-menu-overlay';
+        newOverlay.onclick = function() {
+          sidebar.classList.remove('mobile-open');
+          this.remove();
+        };
+        document.body.appendChild(newOverlay);
+      }
+    }
+  </script>
+</body>
+
+</html>
