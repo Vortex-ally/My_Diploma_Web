@@ -4,11 +4,15 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "django-insecure-8-qjen+3zp_k9v#d5$t-=f7&$l+%djxov+56((_0yg8a89can*"
+SECRET_KEY = os.environ.get(
+    "SECRET_KEY",
+    "django-insecure-8-qjen+3zp_k9v#d5$t-=f7&$l+%djxov+56((_0yg8a89can*",
+)
 
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", "true").lower() == "true"
 
-ALLOWED_HOSTS = ["*"]
+_allowed = os.environ.get("ALLOWED_HOSTS", "*")
+ALLOWED_HOSTS = [h.strip() for h in _allowed.split(",") if h.strip()]
 
 ASGI_APPLICATION = "volunteer.asgi.application"
 CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}

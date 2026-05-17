@@ -1,20 +1,20 @@
 import json
-
+import random
+import string
+import time
 from datetime import timedelta
 
 from django.contrib import messages
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.db.models import Count, F, OuterRef, Q, Subquery
-from django.db.models import Sum
-from django.db.models import Sum as SumModel
-from django.db.models import Value
+from django.core.mail import send_mail
+from django.db.models import Avg, Count, F, OuterRef, Q, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt, csrf_protect
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from .forms import OrganizationForm, PaymentForm, ProjectForm, VolunteerReviewForm
@@ -29,12 +29,30 @@ from .models import (
     Project,
     Rating,
     Request,
+    UserAuthToken,
     UserProfile,
     UserSubscription,
     VolunteerGoal,
     VolunteerReview,
     WorkTypeTemplate,
 )
+
+# ─── Payment plan constants ───────────────────────────────────────────────────
+
+PLAN_PRICES = {
+    "analytics": 10,
+    "premium": 20,
+    "priority": 1,
+}
+
+PLAN_LABELS = {
+    "analytics": "Розширена аналітика",
+    "premium": "Преміум акаунт",
+    "priority": "Пріоритетне місце",
+}
+
+
+# ─── Utilities ────────────────────────────────────────────────────────────────
 
 
 def extract_course(group_name):
@@ -47,33 +65,243 @@ def extract_course(group_name):
     return None
 
 
-def get_volunteer_hours(user):
-    """Calculate total volunteer hours for a user"""
-    from .models import Request
+def _calculate_volunteer_hours(user):
+    """Return total approved/completed volunteer hours for a user."""
+    total = 0
+    for r in Request.objects.filter(
+        Volunteer=user, status__in=["approved", "completed"]
+    ).select_related("event"):
+        total += r.approved_hours if r.approved_hours is not None else (r.event.hours or 0)
+    return total
 
-    result = Request.objects.filter(Volunteer=user, status="approved").aggregate(
-        total=Sum("event__hours")
+
+def _build_ratings_context(volunteer_qs=None):
+    """Return [{name: User, rating: hours}, ...] ordered by hours desc."""
+    if volunteer_qs is None:
+        volunteer_qs = User.objects.filter(profile__role="volunteer")
+    volunteers = (
+        volunteer_qs.select_related("profile")
+        .annotate(
+            total_hours=Coalesce(
+                Sum("requests__event__hours", filter=Q(requests__status="approved")),
+                0,
+            )
+        )
+        .order_by("-total_hours", "username")
     )
-    return result["total"] or 0
+    return [{"name": u, "rating": u.total_hours} for u in volunteers]
 
 
-def landing(request):
-    return render(request, "volunteer_app/landing.html")
+def _build_courses_list():
+    """Return sorted list of unique course numbers from volunteer group names."""
+    courses = set()
+    for group_name in (
+        UserProfile.objects.filter(role="volunteer")
+        .exclude(group_name__isnull=True)
+        .exclude(group_name="")
+        .values_list("group_name", flat=True)
+    ):
+        c = extract_course(group_name)
+        if c:
+            courses.add(c)
+    return sorted(courses | {1, 2})
+
+
+def _build_premium_stats():
+    """Return revenue/subscription statistics dict for admin dashboard."""
+    premium_count = UserSubscription.objects.filter(
+        plan_type="premium", is_active=True
+    ).count()
+    analytics_only_count = UserSubscription.objects.filter(
+        plan_type="analytics", is_active=True
+    ).count()
+    analytics_count = UserSubscription.objects.filter(
+        plan_type__in=["analytics", "premium"], is_active=True
+    ).count()
+    priority_count = PrioritySpot.objects.count()
+    return {
+        "premium_sub_count": premium_count,
+        "analytics_sub_count": analytics_count,
+        "priority_spot_count": priority_count,
+        "total_revenue": premium_count * 20 + analytics_only_count * 10 + priority_count,
+        "org_count": Organization.objects.count(),
+        "review_count": VolunteerReview.objects.count(),
+    }
+
+
+# ─── Dashboard context builders ──────────────────────────────────────────────
+
+
+def _volunteer_dashboard_ctx(user):
+    """Build template name + context dict for volunteer dashboard."""
+    user_requests = Request.objects.filter(Volunteer=user)
+
+    user_req_subquery = Request.objects.filter(
+        Volunteer=user, event=OuterRef("pk")
+    ).values("status")[:1]
+
+    has_premium = UserSubscription.objects.filter(
+        user=user, plan_type="premium", is_active=True
+    ).exists()
+
+    context = {
+        "profile": user.profile,
+        "projects": Project.objects.all().order_by("-date"),
+        "activities": user_requests.order_by("-date_requested"),
+        "joined_opportunities": user_requests.filter(status="approved"),
+        "opportunities": Project.objects.annotate(
+            application_status=Subquery(user_req_subquery)
+        ).order_by("-date"),
+        "ratings": _build_ratings_context(),
+        "has_premium": has_premium,
+        "premium_user_ids": list(
+            UserSubscription.objects.filter(plan_type="premium", is_active=True)
+            .values_list("user_id", flat=True)
+        ),
+        "completed_requests": Request.objects.filter(
+            Volunteer=user, status="completed"
+        ).select_related("event"),
+        "reviewed_event_ids": list(
+            VolunteerReview.objects.filter(volunteer=user).values_list(
+                "event_id", flat=True
+            )
+        ),
+        "priority_event_ids": list(
+            PrioritySpot.objects.filter(volunteer=user).values_list(
+                "event_id", flat=True
+            )
+        ),
+    }
+
+    try:
+        goal = VolunteerGoal.objects.get(volunteer=user)
+        context["volunteer_goal"] = goal
+        context["progress_percent"] = goal.get_progress_percentage()
+    except VolunteerGoal.DoesNotExist:
+        course = extract_course(user.profile.group_name)
+        target = 10 if course == 1 else 20
+        context["volunteer_goal"] = {"target_hours": target, "current_hours": 0}
+        context["progress_percent"] = 0
+
+    if has_premium:
+        approved_reqs = Request.objects.filter(status="approved").select_related(
+            "Volunteer__profile", "event"
+        )
+        attendees_map = {}
+        for req in approved_reqs:
+            attendees_map.setdefault(req.event_id, []).append(req.Volunteer)
+        context["attendees_by_event"] = attendees_map
+
+    return "volunteer_app/user_dashboard.html", context
+
+
+def _organiser_dashboard_ctx(user):
+    """Build template name + context dict for organiser dashboard."""
+    context = {
+        "profile": user.profile,
+        "projects": Project.objects.filter(organiser=user).order_by("-date"),
+        "applicants": Request.objects.filter(event__organiser=user).order_by(
+            "-date_requested"
+        ),
+        "project_form": ProjectForm(),
+        "all_users": (
+            User.objects.all()
+            .select_related("profile")
+            .annotate(
+                total_hours=Coalesce(
+                    Sum(
+                        "requests__event__hours",
+                        filter=Q(requests__status="approved"),
+                    ),
+                    0,
+                )
+            )
+        ),
+        "groups": (
+            UserProfile.objects.filter(role="volunteer")
+            .exclude(group_name__isnull=True)
+            .exclude(group_name="")
+            .values_list("group_name", flat=True)
+            .distinct()
+            .order_by("group_name")
+        ),
+        "event_templates": EventTemplate.objects.all(),
+        "work_type_templates": WorkTypeTemplate.objects.all(),
+        "hours_templates": HoursTemplate.objects.all(),
+        "has_analytics": UserSubscription.objects.filter(
+            user=user, plan_type__in=["analytics", "premium"], is_active=True
+        ).exists(),
+        "has_premium": UserSubscription.objects.filter(
+            user=user, plan_type="premium", is_active=True
+        ).exists(),
+        "organizations": Organization.objects.all(),
+    }
+    return "volunteer_app/organizer_dashboard.html", context
+
+
+def _admin_dashboard_ctx(user, request):
+    """Build template name + context dict for admin/superuser dashboard."""
+    all_users = list(
+        User.objects.all()
+        .select_related("profile")
+        .annotate(
+            total_hours=Coalesce(
+                Sum("requests__event__hours", filter=Q(requests__status="approved")),
+                0,
+            )
+        )
+    )
+    for u in all_users:
+        group_name = getattr(getattr(u, "profile", None), "group_name", None)
+        u.course = extract_course(group_name) if group_name else None
+    all_users.sort(key=lambda x: (x.course is None, x.course or 0))
+
+    imported_students = request.session.pop("imported_students", None)
+
+    context = {
+        "profile": getattr(user, "profile", None),
+        "all_users": all_users,
+        "volunteer_count": UserProfile.objects.filter(role="volunteer").count(),
+        "organizer_count": UserProfile.objects.filter(role="organiser").count(),
+        "projects": Project.objects.all().order_by("-date"),
+        "all_requests": Request.objects.all().order_by("-date_requested"),
+        "ratings": _build_ratings_context(),
+        "courses": _build_courses_list(),
+        "groups": (
+            UserProfile.objects.filter(role="volunteer")
+            .exclude(group_name__isnull=True)
+            .exclude(group_name="")
+            .values_list("group_name", flat=True)
+            .distinct()
+            .order_by("group_name")
+        ),
+        "group_templates": GroupTemplate.objects.all(),
+        "event_templates": EventTemplate.objects.all(),
+        "work_type_templates": WorkTypeTemplate.objects.all(),
+        "hours_templates": HoursTemplate.objects.all(),
+        "has_premium": UserSubscription.objects.filter(
+            user=user, plan_type="premium", is_active=True
+        ).exists(),
+        "premium_stats": _build_premium_stats(),
+        "organizations": Organization.objects.all(),
+    }
+    if imported_students:
+        context["imported_students"] = imported_students
+    return "volunteer_app/admin_dashboard.html", context
+
+
+# ─── Token auth ───────────────────────────────────────────────────────────────
 
 
 def get_user_from_token(request):
-    """Resolve the authenticated user from the `Authorization: Token user_token_<id>` header."""
+    """Resolve the authenticated user from the `Authorization: Token <key>` header."""
     auth_header = request.META.get("HTTP_AUTHORIZATION", "")
     if not auth_header.startswith("Token "):
         return None
-    token = auth_header[len("Token ") :].strip()
-    prefix = "user_token_"
-    if not token.startswith(prefix):
-        return None
+    token = auth_header[len("Token "):].strip()
     try:
-        user_id = int(token[len(prefix) :])
-        return User.objects.get(id=user_id)
-    except (ValueError, User.DoesNotExist):
+        return UserAuthToken.objects.select_related("user").get(key=token).user
+    except UserAuthToken.DoesNotExist:
         return None
 
 
@@ -88,6 +316,9 @@ def api_auth_required(view_func):
         return view_func(request, *args, **kwargs)
 
     return wrapper
+
+
+# ─── API helpers ──────────────────────────────────────────────────────────────
 
 
 def _serialize_project(p, user=None):
@@ -116,6 +347,9 @@ def _serialize_project(p, user=None):
     }
 
 
+# ─── Auth API ─────────────────────────────────────────────────────────────────
+
+
 @csrf_exempt
 def api_login(request):
     if request.method == "POST":
@@ -129,16 +363,15 @@ def api_login(request):
             ).first()
 
             if user_obj:
-                user = authenticate(
-                    request, username=user_obj.username, password=password
-                )
+                user = authenticate(request, username=user_obj.username, password=password)
 
                 if user is not None:
                     profile = getattr(user, "profile", None)
                     role = profile.role if profile else "user"
+                    auth_token = UserAuthToken.generate_for(user)
                     return JsonResponse(
                         {
-                            "token": f"user_token_{user.id}",
+                            "token": auth_token.key,
                             "user": {
                                 "id": user.id,
                                 "username": user.username,
@@ -159,6 +392,9 @@ def api_login(request):
             return JsonResponse({"message": str(e)}, status=400)
 
     return JsonResponse({"message": "Method not allowed"}, status=405)
+
+
+# ─── Projects API ─────────────────────────────────────────────────────────────
 
 
 @csrf_exempt
@@ -256,9 +492,6 @@ def api_apply(request, project_id):
     req = Request.objects.create(
         event=project, Volunteer=request.user, status="pending"
     )
-    if project.max_volunteers > 0:
-        project.current_volunteers = (project.current_volunteers or 0) + 1
-        project.save()
     return JsonResponse({"application": {"id": req.id}})
 
 
@@ -329,19 +562,31 @@ def api_project_applications(request, project_id):
             action = data.get("action")
 
             req = get_object_or_404(Request, id=app_id)
+            old_status = req.status
+
             if action == "approve":
                 req.status = "approved"
-                project.current_volunteers += 1
-                project.save()
+                req.save()
+                if old_status != "approved" and project.max_volunteers > 0:
+                    Project.objects.filter(id=project.id).update(
+                        current_volunteers=F("current_volunteers") + 1
+                    )
             elif action == "reject":
                 req.status = "rejected"
-            req.save()
+                req.save()
+                if old_status == "approved" and project.max_volunteers > 0:
+                    Project.objects.filter(
+                        id=project.id, current_volunteers__gt=0
+                    ).update(current_volunteers=F("current_volunteers") - 1)
 
             return JsonResponse({"message": "OK"})
         except Exception as e:
             return JsonResponse({"message": str(e)}, status=400)
 
     return JsonResponse({"message": "Method not allowed"}, status=405)
+
+
+# ─── Users API ────────────────────────────────────────────────────────────────
 
 
 @csrf_exempt
@@ -380,17 +625,6 @@ def api_users(request):
 
 
 # ─── Volunteer-facing JSON API ────────────────────────────────────────────────
-
-
-def _calculate_volunteer_hours(user):
-    total = 0
-    for r in Request.objects.filter(
-        Volunteer=user, status__in=["approved", "completed"]
-    ).select_related("event"):
-        total += (
-            r.approved_hours if r.approved_hours is not None else (r.event.hours or 0)
-        )
-    return total
 
 
 @csrf_exempt
@@ -470,9 +704,8 @@ def api_password_change(request):
         )
     request.user.set_password(new)
     request.user.save()
-    return JsonResponse(
-        {"message": "Пароль змінено", "token": f"user_token_{request.user.id}"}
-    )
+    new_token = UserAuthToken.generate_for(request.user)
+    return JsonResponse({"message": "Пароль змінено", "token": new_token.key})
 
 
 @csrf_exempt
@@ -615,6 +848,9 @@ def api_review(request):
     )
 
 
+# ─── Chat API ─────────────────────────────────────────────────────────────────
+
+
 @csrf_exempt
 @api_auth_required
 def api_chat_users(request):
@@ -737,6 +973,9 @@ def api_chat_send(request):
     )
 
 
+# ─── Purchase / Subscriptions API ────────────────────────────────────────────
+
+
 @csrf_exempt
 @api_auth_required
 def api_purchase(request):
@@ -798,9 +1037,6 @@ def api_purchase(request):
             Request.objects.create(
                 Volunteer=request.user, event=project, status="pending"
             )
-            if project.max_volunteers > 0:
-                project.current_volunteers = (project.current_volunteers or 0) + 1
-                project.save()
         return JsonResponse(
             {
                 "priority": {
@@ -841,6 +1077,13 @@ def api_subscriptions(request):
     )
 
 
+# ─── Web views: auth ──────────────────────────────────────────────────────────
+
+
+def landing(request):
+    return render(request, "volunteer_app/landing.html")
+
+
 @csrf_exempt
 def login_view(request):
     if request.user.is_authenticated:
@@ -857,9 +1100,7 @@ def login_view(request):
             ).first()
 
             if user_obj:
-                user = authenticate(
-                    request, username=user_obj.username, password=password
-                )
+                user = authenticate(request, username=user_obj.username, password=password)
 
                 if user is not None:
                     login(request, user)
@@ -874,10 +1115,12 @@ def login_view(request):
     return render(request, "volunteer_app/login.html", {"error": error_message})
 
 
+# ─── Web views: dashboard ────────────────────────────────────────────────────
+
+
 @login_required
 def dashboard(request):
     user = request.user
-    context = {}
 
     if request.method == "POST" and (
         user.is_superuser or (hasattr(user, "profile") and user.profile.role == "admin")
@@ -890,7 +1133,6 @@ def dashboard(request):
 
         if email and password:
             username = email.split("@")[0]
-            # Generate unique username if exists
             base_username = username
             counter = 1
             while User.objects.filter(username=username).exists():
@@ -907,9 +1149,7 @@ def dashboard(request):
                     new_user.last_name = " ".join(names[1:])
             new_user.save()
 
-            # Check if profile already exists
             profile, created = UserProfile.objects.get_or_create(user=new_user)
-            # Admin dashboard roles are 'volunteer', 'organizer', 'admin'
             if role == "organizer":
                 role = "organiser"
             profile.role = (
@@ -923,318 +1163,27 @@ def dashboard(request):
 
     try:
         if user.is_superuser:
-            template = "volunteer_app/admin_dashboard.html"
-            all_users = (
-                User.objects.all()
-                .select_related("profile")
-                .annotate(
-                    total_hours=Sum(
-                        "requests__event__hours", filter=Q(requests__status="approved")
-                    )
-                )
-            )
-            context["all_users"] = all_users
-            context["volunteer_count"] = UserProfile.objects.filter(
-                role="volunteer"
-            ).count()
-            context["organizer_count"] = UserProfile.objects.filter(
-                role="organiser"
-            ).count()
-            context["projects"] = Project.objects.all().order_by("-date")
-            context["all_requests"] = Request.objects.all().order_by("-date_requested")
-            all_volunteers = (
-                User.objects.filter(profile__role="volunteer")
-                .select_related("profile")
-                .annotate(
-                    total_hours=Coalesce(
-                        Sum(
-                            "requests__event__hours",
-                            filter=Q(requests__status="approved"),
-                        ),
-                        0,
-                    )
-                )
-                .order_by("-total_hours")
-            )
-            context["ratings"] = [
-                {"name": u, "rating": u.total_hours} for u in all_volunteers
-            ]
-            context["groups"] = (
-                UserProfile.objects.filter(role="volunteer")
-                .exclude(group_name__isnull=True)
-                .exclude(group_name="")
-                .values_list("group_name", flat=True)
-                .distinct()
-                .order_by("group_name")
-            )
-            imported_students = request.session.pop("imported_students", None)
-            if imported_students:
-                context["imported_students"] = imported_students
-            context["group_templates"] = GroupTemplate.objects.all()
-            context["event_templates"] = EventTemplate.objects.all()
-            context["work_type_templates"] = WorkTypeTemplate.objects.all()
-            context["hours_templates"] = HoursTemplate.objects.all()
-            # Keys required by the shared admin template
-            context["profile"] = getattr(user, "profile", None)
-            context["organizations"] = Organization.objects.all()
-            context["has_premium"] = UserSubscription.objects.filter(
-                user=user, plan_type="premium", is_active=True
-            ).exists()
-            premium_sub_count = UserSubscription.objects.filter(plan_type="premium", is_active=True).count()
-            analytics_sub_count = UserSubscription.objects.filter(plan_type__in=["analytics", "premium"], is_active=True).count()
-            priority_spot_count = PrioritySpot.objects.count()
-            context["premium_stats"] = {
-                "premium_sub_count": premium_sub_count,
-                "analytics_sub_count": analytics_sub_count,
-                "priority_spot_count": priority_spot_count,
-                "total_revenue": premium_sub_count * 20 + UserSubscription.objects.filter(plan_type="analytics", is_active=True).count() * 10 + priority_spot_count,
-                "org_count": Organization.objects.count(),
-                "review_count": VolunteerReview.objects.count(),
-            }
-            courses_set = []
-            for profile in UserProfile.objects.filter(role="volunteer").exclude(group_name__isnull=True).exclude(group_name=""):
-                c = extract_course(profile.group_name)
-                if c and c not in courses_set:
-                    courses_set.append(c)
-            context["courses"] = sorted(set(courses_set + [1, 2]))
+            template, context = _admin_dashboard_ctx(user, request)
         elif hasattr(user, "profile"):
-            context["profile"] = user.profile
-            if user.profile.role == "volunteer":
-                template = "volunteer_app/user_dashboard.html"
-                context["projects"] = Project.objects.all().order_by("-date")
-                user_requests = Request.objects.filter(Volunteer=user)
-                context["activities"] = user_requests.order_by("-date_requested")
-                context["joined_opportunities"] = user_requests.filter(
-                    status="approved"
-                )
-
-                user_req_subquery = Request.objects.filter(
-                    Volunteer=user, event=OuterRef("pk")
-                ).values("status")[:1]
-
-                context["opportunities"] = Project.objects.annotate(
-                    application_status=Subquery(user_req_subquery)
-                ).order_by("-date")
-
-                all_volunteers = (
-                    User.objects.filter(profile__role="volunteer")
-                    .select_related("profile")
-                    .annotate(
-                        total_hours=Coalesce(
-                            Sum(
-                                "requests__event__hours",
-                                filter=Q(requests__status="approved"),
-                            ),
-                            0,
-                        )
-                    )
-                    .order_by("-total_hours")
-                )
-                context["ratings"] = [
-                    {"name": u, "rating": u.total_hours} for u in all_volunteers
-                ]
-
-                try:
-                    goal = VolunteerGoal.objects.get(volunteer=user)
-                    context["volunteer_goal"] = goal
-                    context["progress_percent"] = goal.get_progress_percentage()
-                except VolunteerGoal.DoesNotExist:
-                    group_name = user.profile.group_name
-                    course = extract_course(group_name)
-                    target = 10 if course == 1 else (20 if course >= 2 else 10)
-                    context["volunteer_goal"] = {
-                        "target_hours": target,
-                        "current_hours": 0,
-                    }
-                    context["progress_percent"] = 0
-
-                context["has_premium"] = UserSubscription.objects.filter(
-                    user=user, plan_type="premium", is_active=True
-                ).exists()
-                context["premium_user_ids"] = list(
-                    UserSubscription.objects.filter(
-                        plan_type="premium", is_active=True
-                    ).values_list("user_id", flat=True)
-                )
-                has_premium_vol = context["has_premium"]
-                if has_premium_vol:
-                    approved_reqs = Request.objects.filter(
-                        status="approved"
-                    ).select_related("Volunteer__profile", "event")
-                    attendees_map = {}
-                    for req in approved_reqs:
-                        attendees_map.setdefault(req.event_id, []).append(req.Volunteer)
-                    context["attendees_by_event"] = attendees_map
-                context["completed_requests"] = Request.objects.filter(
-                    Volunteer=user, status="completed"
-                ).select_related("event")
-                reviewed_event_ids = VolunteerReview.objects.filter(
-                    volunteer=user
-                ).values_list("event_id", flat=True)
-                context["reviewed_event_ids"] = list(reviewed_event_ids)
-                priority_event_ids = PrioritySpot.objects.filter(
-                    volunteer=user
-                ).values_list("event_id", flat=True)
-                context["priority_event_ids"] = list(priority_event_ids)
-
-            elif user.profile.role == "organiser":
-                template = "volunteer_app/organizer_dashboard.html"
-                context["projects"] = Project.objects.filter(organiser=user).order_by(
-                    "-date"
-                )
-                context["applicants"] = Request.objects.filter(
-                    event__organiser=user
-                ).order_by("-date_requested")
-                context["project_form"] = ProjectForm()
-                context["all_users"] = (
-                    User.objects.all()
-                    .select_related("profile")
-                    .annotate(
-                        total_hours=Coalesce(
-                            Sum(
-                                "requests__event__hours",
-                                filter=Q(requests__status="approved"),
-                            ),
-                            0,
-                        )
-                    )
-                )
-                context["groups"] = (
-                    UserProfile.objects.filter(role="volunteer")
-                    .exclude(group_name__isnull=True)
-                    .exclude(group_name="")
-                    .values_list("group_name", flat=True)
-                    .distinct()
-                    .order_by("group_name")
-                )
-                context["event_templates"] = EventTemplate.objects.all()
-                context["work_type_templates"] = WorkTypeTemplate.objects.all()
-                context["hours_templates"] = HoursTemplate.objects.all()
-                context["has_analytics"] = UserSubscription.objects.filter(
-                    user=user, plan_type__in=["analytics", "premium"], is_active=True
-                ).exists()
-                context["has_premium"] = UserSubscription.objects.filter(
-                    user=user, plan_type="premium", is_active=True
-                ).exists()
-                context["organizations"] = Organization.objects.all()
-
-            elif user.profile.role == "admin":
-                template = "volunteer_app/admin_dashboard.html"
-                all_users = list(
-                    User.objects.all()
-                    .select_related("profile")
-                    .annotate(
-                        total_hours=Coalesce(
-                            Sum(
-                                "requests__event__hours",
-                                filter=Q(requests__status="approved"),
-                            ),
-                            0,
-                        )
-                    )
-                )
-                for u in all_users:
-                    try:
-                        group_name = u.profile.group_name
-                    except Exception:
-                        group_name = None
-                    u.course = extract_course(group_name) if group_name else None
-                all_users = sorted(
-                    all_users, key=lambda x: (x.course is None, x.course or 0)
-                )
-                context["all_users"] = all_users
-                context["volunteer_count"] = UserProfile.objects.filter(
-                    role="volunteer"
-                ).count()
-                context["organizer_count"] = UserProfile.objects.filter(
-                    role="organiser"
-                ).count()
-                context["projects"] = Project.objects.all().order_by("-date")
-                context["all_requests"] = Request.objects.all().order_by(
-                    "-date_requested"
-                )
-                all_volunteers = (
-                    User.objects.filter(profile__role="volunteer")
-                    .select_related("profile")
-                    .annotate(
-                        total_hours=Coalesce(
-                            Sum(
-                                "requests__event__hours",
-                                filter=Q(requests__status="approved"),
-                            ),
-                            0,
-                        )
-                    )
-                    .order_by("-total_hours")
-                )
-                context["ratings"] = [
-                    {"name": u, "rating": u.total_hours} for u in all_volunteers
-                ]
-
-                courses = []
-                for profile in (
-                    UserProfile.objects.filter(role="volunteer")
-                    .exclude(group_name__isnull=True)
-                    .exclude(group_name="")
-                ):
-                    course = extract_course(profile.group_name)
-                    if course and course not in courses:
-                        courses.append(course)
-                courses.sort()
-                available_courses = [1, 2]
-                courses = sorted(set(courses + available_courses))
-                context["courses"] = courses
-                context["groups"] = (
-                    UserProfile.objects.filter(role="volunteer")
-                    .exclude(group_name__isnull=True)
-                    .exclude(group_name="")
-                    .values_list("group_name", flat=True)
-                    .distinct()
-                    .order_by("group_name")
-                )
-                context["group_templates"] = GroupTemplate.objects.all()
-                context["event_templates"] = EventTemplate.objects.all()
-                context["work_type_templates"] = WorkTypeTemplate.objects.all()
-                context["hours_templates"] = HoursTemplate.objects.all()
-                imported_students = request.session.pop("imported_students", None)
-                if imported_students:
-                    context["imported_students"] = imported_students
-                context["has_premium"] = UserSubscription.objects.filter(
-                    user=user, plan_type="premium", is_active=True
-                ).exists()
-                premium_sub_count = UserSubscription.objects.filter(
-                    plan_type="premium", is_active=True
-                ).count()
-                analytics_sub_count = UserSubscription.objects.filter(
-                    plan_type__in=["analytics", "premium"], is_active=True
-                ).count()
-                priority_spot_count = PrioritySpot.objects.count()
-                total_revenue = (
-                    premium_sub_count * 20
-                    + UserSubscription.objects.filter(
-                        plan_type="analytics", is_active=True
-                    ).count()
-                    * 10
-                    + priority_spot_count * 1
-                )
-                context["premium_stats"] = {
-                    "premium_sub_count": premium_sub_count,
-                    "analytics_sub_count": analytics_sub_count,
-                    "priority_spot_count": priority_spot_count,
-                    "total_revenue": total_revenue,
-                    "org_count": Organization.objects.count(),
-                    "review_count": VolunteerReview.objects.count(),
-                }
-
+            role = user.profile.role
+            if role == "volunteer":
+                template, context = _volunteer_dashboard_ctx(user)
+            elif role == "organiser":
+                template, context = _organiser_dashboard_ctx(user)
+            elif role == "admin":
+                template, context = _admin_dashboard_ctx(user, request)
             else:
-                template = "volunteer_app/landing.html"
+                template, context = "volunteer_app/landing.html", {}
         else:
-            template = "volunteer_app/landing.html"
+            template, context = "volunteer_app/landing.html", {}
     except Exception as e:
         print(f"Error in dashboard: {e}")
-        template = "volunteer_app/landing.html"
+        template, context = "volunteer_app/landing.html", {}
 
     return render(request, template, context)
+
+
+# ─── Web views: projects ──────────────────────────────────────────────────────
 
 
 @login_required
@@ -1248,9 +1197,6 @@ def apply_project(request, project_id):
             Request.objects.create(
                 Volunteer=request.user, event=project, status="pending"
             )
-            if project.max_volunteers > 0:
-                project.current_volunteers += 1
-                project.save()
             messages.success(request, f'Ви подали заявку на проєкт "{project.name}"')
         else:
             messages.info(request, "Ви вже подали заявку на цей проєкт")
@@ -1273,6 +1219,7 @@ def manage_request(request, request_id, action):
             return JsonResponse({"ok": False, "message": "Немає доступу"}, status=403)
         return redirect("dashboard")
 
+    old_status = req.status
     msg = ""
     if action == "approve":
         req.status = "approved"
@@ -1300,9 +1247,14 @@ def manage_request(request, request_id, action):
 
     req.save()
     project = req.event
-    if action == "approve" and project.max_volunteers > 0:
-        project.current_volunteers += 1
-        project.save()
+    if action == "approve" and old_status != "approved" and project.max_volunteers > 0:
+        Project.objects.filter(id=project.id).update(
+            current_volunteers=F("current_volunteers") + 1
+        )
+    elif action == "reject" and old_status == "approved" and project.max_volunteers > 0:
+        Project.objects.filter(id=project.id, current_volunteers__gt=0).update(
+            current_volunteers=F("current_volunteers") - 1
+        )
 
     if is_ajax:
         return JsonResponse({"ok": True, "message": msg, "approved_hours": req.approved_hours})
@@ -1361,7 +1313,6 @@ def create_project(request):
         date_val = post_data.get("date")
         if date_val and "T" not in date_val:
             post_data["date"] = f"{date_val}T12:00"
-        # Handle empty organization - set to None if empty
         if post_data.get("organization") == "":
             post_data["organization"] = None
         form = ProjectForm(post_data)
@@ -1385,39 +1336,29 @@ def delete_project(request, project_id):
     return redirect("dashboard")
 
 
+# ─── Web views: auth / session ───────────────────────────────────────────────
+
+
 def logout_view(request):
-    if request.method == "POST":
-        logout(request)
-        return redirect("landing")
-    elif request.method == "GET":
-        logout(request)
-        return redirect("landing")
+    logout(request)
+    return redirect("landing")
+
+
+# ─── Web views: profile / settings ───────────────────────────────────────────
 
 
 @login_required
 def profile_view(request):
     user = request.user
-    context = {
-        "user": user,
-    }
+    context = {"user": user}
     if hasattr(user, "profile"):
         context["profile"] = user.profile
 
-    # Get user's volunteer stats
     if hasattr(user, "profile") and user.profile.role == "volunteer":
-        from django.db.models import Count, Sum
-
-        from .models import Request
-
         context["total_events"] = Request.objects.filter(
-            Volunteer=user, status="approved"
+            Volunteer=user, status__in=["approved", "completed"]
         ).count()
-        context["total_hours"] = (
-            Request.objects.filter(Volunteer=user, status="approved").aggregate(
-                total=Sum("event__hours")
-            )["total"]
-            or 0
-        )
+        context["total_hours"] = _calculate_volunteer_hours(user)
 
     return render(request, "volunteer_app/profile.html", context)
 
@@ -1442,17 +1383,13 @@ def view_user_profile(request, username):
     }
 
     if hasattr(viewed_user, "profile") and viewed_user.profile.role == "volunteer":
-        from django.db.models import Count, Sum
-
-        from .models import Request
-
         context["total_events"] = Request.objects.filter(
             Volunteer=viewed_user, status="completed"
         ).count()
         context["total_hours"] = (
-            Request.objects.filter(Volunteer=viewed_user, status="completed").aggregate(
-                total=Sum("approved_hours")
-            )["total"]
+            Request.objects.filter(
+                Volunteer=viewed_user, status="completed"
+            ).aggregate(total=Sum("approved_hours"))["total"]
             or 0
         )
         context["user_requests"] = Request.objects.filter(
@@ -1468,9 +1405,7 @@ def view_user_profile(request, username):
 @login_required
 def settings_view(request):
     user = request.user
-    context = {
-        "user": user,
-    }
+    context = {"user": user}
     if hasattr(user, "profile"):
         context["profile"] = user.profile
     return render(request, "volunteer_app/settings.html", context)
@@ -1480,14 +1415,10 @@ def settings_view(request):
 def update_profile(request):
     if request.method == "POST":
         user = request.user
-        first_name = request.POST.get("first_name", "").strip()
-        last_name = request.POST.get("last_name", "").strip()
-
-        user.first_name = first_name
-        user.last_name = last_name
+        user.first_name = request.POST.get("first_name", "").strip()
+        user.last_name = request.POST.get("last_name", "").strip()
         user.save()
 
-        # Update profile if exists
         if hasattr(user, "profile"):
             profile = user.profile
             group_name = request.POST.get("group_name", "").strip()
@@ -1502,8 +1433,6 @@ def update_profile(request):
 @login_required
 def update_password(request):
     if request.method == "POST":
-        from django.contrib.auth import update_session_auth_hash
-
         user = request.user
         new_password = request.POST.get("new_password", "").strip()
         confirm_password = request.POST.get("confirm_password", "").strip()
@@ -1518,6 +1447,9 @@ def update_password(request):
         else:
             messages.error(request, "Введіть новий пароль")
     return redirect("settings")
+
+
+# ─── Web views: admin tools ───────────────────────────────────────────────────
 
 
 @login_required
@@ -1577,9 +1509,6 @@ def import_students(request):
                     counter += 1
 
                 if not password:
-                    import random
-                    import string
-
                     password = "".join(
                         random.choices(string.ascii_letters + string.digits, k=8)
                     )
@@ -1714,9 +1643,9 @@ def bulk_delete_users(request):
     username_list = [u.strip() for u in usernames.split(",") if u.strip()]
     deleted_count = 0
 
-    for username in username_list:
+    for uname in username_list:
         try:
-            user = User.objects.get(username=username)
+            user = User.objects.get(username=uname)
             if not user.is_superuser:
                 user.delete()
                 deleted_count += 1
@@ -1725,6 +1654,9 @@ def bulk_delete_users(request):
 
     messages.success(request, f"Видалено {deleted_count} користувачів")
     return redirect("dashboard")
+
+
+# ─── Web views: chat ──────────────────────────────────────────────────────────
 
 
 @login_required
@@ -1745,10 +1677,10 @@ def chat_view(request, username=None):
         ).order_by("created_at")
         context["chat_with"] = other_user
         context["messages"] = messages_list
-
         messages_list.filter(recipient=user).update(is_read=True)
 
-    all_users = (
+    # Single query for user list + unread counts (avoids N+1)
+    all_users = list(
         User.objects.filter(
             Q(profile__role="organiser")
             | Q(profile__role="admin")
@@ -1756,18 +1688,34 @@ def chat_view(request, username=None):
         )
         .exclude(id=user.id)
         .select_related("profile")
+        .annotate(
+            unread_count=Count(
+                "sent_messages",
+                filter=Q(sent_messages__recipient=user, sent_messages__is_read=False),
+            )
+        )
     )
 
+    # Single query for last messages (avoids N+1)
+    other_ids = [u.id for u in all_users]
+    recent_messages = (
+        Message.objects.filter(
+            Q(sender=user, recipient_id__in=other_ids)
+            | Q(sender_id__in=other_ids, recipient=user)
+        )
+        .order_by("-created_at")
+        .select_related("sender", "recipient")
+    )
+    last_message_map = {}
+    for msg in recent_messages:
+        other_id = msg.recipient_id if msg.sender_id == user.id else msg.sender_id
+        if other_id not in last_message_map:
+            last_message_map[other_id] = msg
+
     for u in all_users:
-        u.last_message = Message.objects.filter(
-            Q(sender=user, recipient=u) | Q(sender=u, recipient=user)
-        ).first()
-        u.unread_count = Message.objects.filter(
-            sender=u, recipient=user, is_read=False
-        ).count()
+        u.last_message = last_message_map.get(u.id)
 
     context["all_users"] = all_users
-
     return render(request, "volunteer_app/chat.html", context)
 
 
@@ -1784,6 +1732,9 @@ def send_message(request):
     Message.objects.create(sender=request.user, recipient=recipient, content=content)
 
     return JsonResponse({"success": True})
+
+
+# ─── Web views: archive / templates ──────────────────────────────────────────
 
 
 @login_required
@@ -1863,9 +1814,7 @@ def create_template(request):
         hours = request.POST.get("hours")
         description = request.POST.get("description", "")
         if name and hours:
-            HoursTemplate.objects.create(
-                name=name, hours=hours, description=description
-            )
+            HoursTemplate.objects.create(name=name, hours=hours, description=description)
             messages.success(request, f"Шаблон годин {name} додано")
 
     return redirect("templates")
@@ -1896,15 +1845,22 @@ def delete_template(request):
     return redirect("templates")
 
 
+# ─── Web views: 2-factor password change ─────────────────────────────────────
+
+
+def _mask_email(email):
+    """Show only first 2 chars and domain: ab***@gmail.com"""
+    try:
+        local, domain = email.split("@", 1)
+        return local[:2] + "***@" + domain
+    except ValueError:
+        return email
+
+
 @login_required
 def two_factor_password_change(request):
-    import random
-    import time
-    from django.core.mail import send_mail
-
     user = request.user
 
-    # ── Step 2: verify the code the user entered ──────────────────────────────
     if request.method == "POST" and request.POST.get("step") == "verify":
         code_data = request.session.get("pwd_change_code")
         if not code_data:
@@ -1928,33 +1884,39 @@ def two_factor_password_change(request):
         entered = request.POST.get("code", "").strip()
         if entered != code_data["code"]:
             remaining = 3 - code_data["attempts"]
-            messages.error(request, f"Невірний код підтвердження. Залишилось спроб: {remaining}.")
+            messages.error(
+                request,
+                f"Невірний код підтвердження. Залишилось спроб: {remaining}.",
+            )
             profile = getattr(user, "profile", None)
-            return render(request, "volunteer_app/settings.html", {
-                "show_code_form": True,
-                "masked_email": _mask_email(code_data["email"]),
-                "profile": profile,
-            })
+            return render(
+                request,
+                "volunteer_app/settings.html",
+                {
+                    "show_code_form": True,
+                    "masked_email": _mask_email(code_data["email"]),
+                    "profile": profile,
+                },
+            )
 
-        # ── Code correct — change the password ────────────────────────────────
         new_password = code_data["new_password"]
         user.set_password(new_password)
         user.save()
-        from django.contrib.auth import update_session_auth_hash
         update_session_auth_hash(request, user)
         request.session.pop("pwd_change_code", None)
         messages.success(request, "✅ Пароль успішно змінено!")
         return redirect("settings")
 
-    # ── Step 1: validate email + passwords, then send the code ────────────────
     if request.method == "POST" and request.POST.get("step") == "send":
         email = request.POST.get("email", "").strip().lower()
         new_password = request.POST.get("new_password", "").strip()
         confirm_password = request.POST.get("confirm_password", "").strip()
 
-        # Email must match the account's registered email
         if not user.email or email != user.email.strip().lower():
-            messages.error(request, "❌ Введений email не збігається з email вашого акаунту.")
+            messages.error(
+                request,
+                "❌ Введений email не збігається з email вашого акаунту.",
+            )
             return redirect("settings")
 
         if not new_password or not confirm_password:
@@ -1999,28 +1961,28 @@ def two_factor_password_change(request):
             pass
 
         if sent:
-            messages.info(request, f"📧 Код підтвердження надіслано на {_mask_email(email)}")
+            messages.info(
+                request,
+                f"📧 Код підтвердження надіслано на {_mask_email(email)}",
+            )
         else:
-            # Development fallback — show code in the UI
             messages.warning(request, f"[DEV] SMTP не налаштовано. Ваш код: {code}")
 
         profile = getattr(user, "profile", None)
-        return render(request, "volunteer_app/settings.html", {
-            "show_code_form": True,
-            "masked_email": _mask_email(email),
-            "profile": profile,
-        })
+        return render(
+            request,
+            "volunteer_app/settings.html",
+            {
+                "show_code_form": True,
+                "masked_email": _mask_email(email),
+                "profile": profile,
+            },
+        )
 
     return redirect("settings")
 
 
-def _mask_email(email):
-    """Show only first 2 chars and domain: ab***@gmail.com"""
-    try:
-        local, domain = email.split("@", 1)
-        return local[:2] + "***@" + domain
-    except ValueError:
-        return email
+# ─── Web views: events / goals ────────────────────────────────────────────────
 
 
 @login_required
@@ -2037,20 +1999,12 @@ def create_volunteer_goal(request):
             messages.error(request, "Тільки волонтери можуть створювати ціль")
             return redirect("dashboard")
 
-        group_name = user.profile.group_name
-        course = extract_course(group_name)
-
-        if course == 1:
-            target_hours = 10
-        elif course >= 2:
-            target_hours = 20
-        else:
-            target_hours = 10
+        course = extract_course(user.profile.group_name)
+        target_hours = 10 if course == 1 else (20 if course and course >= 2 else 10)
 
         goal, created = VolunteerGoal.objects.get_or_create(
             volunteer=user, defaults={"target_hours": target_hours}
         )
-
         if not created:
             goal.target_hours = target_hours
             goal.save()
@@ -2061,19 +2015,7 @@ def create_volunteer_goal(request):
     return redirect("dashboard")
 
 
-# ─── Payment / Subscription ───────────────────────────────────────────────────
-
-PLAN_PRICES = {
-    "analytics": 10,
-    "premium": 20,
-    "priority": 1,
-}
-
-PLAN_LABELS = {
-    "analytics": "Розширена аналітика",
-    "premium": "Преміум акаунт",
-    "priority": "Пріоритетне місце",
-}
+# ─── Web views: payment / subscriptions ──────────────────────────────────────
 
 
 @login_required
@@ -2130,7 +2072,7 @@ def purchase_plan(request, plan_type):
     )
 
 
-# ─── Analytics ────────────────────────────────────────────────────────────────
+# ─── Web views: analytics ─────────────────────────────────────────────────────
 
 
 @login_required
@@ -2156,53 +2098,56 @@ def analytics_dashboard(request):
     else:
         projects = Project.objects.all()
 
-    from django.db.models import Avg
+    # Single query instead of N*5 queries via annotate
+    project_stats_qs = projects.annotate(
+        req_total=Count("requests", distinct=True),
+        req_approved=Count(
+            "requests", filter=Q(requests__status="approved"), distinct=True
+        ),
+        req_completed=Count(
+            "requests", filter=Q(requests__status="completed"), distinct=True
+        ),
+        req_stars=Count(
+            "requests", filter=Q(requests__star_rating=True), distinct=True
+        ),
+        avg_rating=Avg("reviews__rating"),
+        reviews_count=Count("reviews", distinct=True),
+    )
 
-    project_stats = []
-    for p in projects:
-        total = Request.objects.filter(event=p).count()
-        approved = Request.objects.filter(event=p, status="approved").count()
-        completed = Request.objects.filter(event=p, status="completed").count()
-        stars = Request.objects.filter(event=p, star_rating=True).count()
-        avg_rating = VolunteerReview.objects.filter(event=p).aggregate(
-            avg=Avg("rating")
-        )["avg"]
-        reviews_count = VolunteerReview.objects.filter(event=p).count()
-        project_stats.append(
-            {
-                "project": p,
-                "total": total,
-                "approved": approved,
-                "completed": completed,
-                "stars": stars,
-                "avg_rating": round(avg_rating, 1) if avg_rating else None,
-                "reviews_count": reviews_count,
-            }
-        )
+    project_stats = [
+        {
+            "project": p,
+            "total": p.req_total,
+            "approved": p.req_approved,
+            "completed": p.req_completed,
+            "stars": p.req_stars,
+            "avg_rating": round(p.avg_rating, 1) if p.avg_rating else None,
+            "reviews_count": p.reviews_count,
+        }
+        for p in project_stats_qs
+    ]
 
-    # Chart.js data
     labels = [s["project"].name[:20] for s in project_stats]
     approved_data = [s["approved"] for s in project_stats]
     completed_data = [s["completed"] for s in project_stats]
-    ratings_data = [
-        float(s["avg_rating"]) if s["avg_rating"] else 0 for s in project_stats
-    ]
+    ratings_data = [float(s["avg_rating"]) if s["avg_rating"] else 0 for s in project_stats]
 
-    # Rating distribution (1-5 stars)
-    rating_dist = [
-        VolunteerReview.objects.filter(event__in=projects, rating=i).count()
-        for i in range(1, 6)
-    ]
-
-    import json as json_module
+    # Rating distribution: 1 query instead of 5
+    rating_dist_qs = (
+        VolunteerReview.objects.filter(event__in=projects)
+        .values("rating")
+        .annotate(cnt=Count("id"))
+    )
+    rating_dist_map = {item["rating"]: item["cnt"] for item in rating_dist_qs}
+    rating_dist = [rating_dist_map.get(i, 0) for i in range(1, 6)]
 
     context = {
         "project_stats": project_stats,
-        "chart_labels": json_module.dumps(labels, ensure_ascii=False),
-        "chart_approved": json_module.dumps(approved_data),
-        "chart_completed": json_module.dumps(completed_data),
-        "chart_ratings": json_module.dumps(ratings_data),
-        "chart_rating_dist": json_module.dumps(rating_dist),
+        "chart_labels": json.dumps(labels, ensure_ascii=False),
+        "chart_approved": json.dumps(approved_data),
+        "chart_completed": json.dumps(completed_data),
+        "chart_ratings": json.dumps(ratings_data),
+        "chart_rating_dist": json.dumps(rating_dist),
         "total_projects": projects.count(),
         "total_volunteers": Request.objects.filter(
             event__in=projects, status__in=["approved", "completed"]
@@ -2215,7 +2160,7 @@ def analytics_dashboard(request):
     return render(request, "volunteer_app/analytics.html", context)
 
 
-# ─── Volunteer Reviews ────────────────────────────────────────────────────────
+# ─── Web views: reviews ───────────────────────────────────────────────────────
 
 
 @login_required
@@ -2251,7 +2196,7 @@ def leave_review(request, request_id):
     )
 
 
-# ─── Organizations ────────────────────────────────────────────────────────────
+# ─── Web views: organizations ─────────────────────────────────────────────────
 
 
 @login_required

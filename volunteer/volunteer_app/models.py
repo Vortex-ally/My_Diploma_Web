@@ -1,3 +1,5 @@
+import secrets
+
 from django.contrib.auth.models import User
 from django.db import IntegrityError, models
 from django.db.models.signals import post_save, pre_save
@@ -328,6 +330,29 @@ class TelegramNotification(models.Model):
         return f"TG {self.chat_id}: {self.message[:40]}"
 
 
+class UserAuthToken(models.Model):
+    """Secure per-user API token (replaces guessable user_token_<id> scheme)."""
+
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="auth_token"
+    )
+    key = models.CharField(max_length=64, unique=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Токен автентифікації"
+        verbose_name_plural = "Токени автентифікації"
+
+    def __str__(self):
+        return f"{self.user.username}: {self.key[:8]}…"
+
+    @classmethod
+    def generate_for(cls, user):
+        key = secrets.token_hex(32)
+        obj, _ = cls.objects.update_or_create(user=user, defaults={"key": key})
+        return obj
+
+
 def _tg_notify(chat_id, message):
     """Queue one Telegram notification (never raises)."""
     try:
@@ -355,7 +380,7 @@ def _tg_notify_admins(message):
 
 
 # ── Track old Request status to avoid duplicate notifications ─────────────────
-_req_old: dict = {}
+# State is stored on the instance itself (works correctly in multi-process deploys)
 
 
 @receiver(pre_save, sender="volunteer_app.Request")
@@ -363,7 +388,8 @@ def _capture_request_state(sender, instance, **kwargs):
     if instance.pk:
         try:
             old = sender.objects.get(pk=instance.pk)
-            _req_old[instance.pk] = (old.status, old.organizer_reported)
+            instance._pre_save_status = old.status
+            instance._pre_save_reported = old.organizer_reported
         except sender.DoesNotExist:
             pass
 
@@ -383,7 +409,8 @@ def _notify_on_request_change(sender, instance, created, **kwargs):
             pass
         return
 
-    old_status, old_reported = _req_old.pop(instance.pk, (None, False))
+    old_status = getattr(instance, "_pre_save_status", None)
+    old_reported = getattr(instance, "_pre_save_reported", False)
 
     # Approved → volunteer
     if instance.status == "approved" and old_status != "approved":

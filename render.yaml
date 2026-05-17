@@ -3,7 +3,7 @@ services:
     name: boscovolunteer
     runtime: python
     buildCommand: "./build.sh"
-    startCommand: "gunicorn --chdir volunteer volunteer.wsgi:application --bind 0.0.0.0:$PORT --timeout 120 --workers 1"
+    startCommand: "cd volunteer && gunicorn volunteer.wsgi:application --bind 0.0.0.0:$PORT --timeout 120 --workers 1"
     envVars:
       - key: SECRET_KEY
         generateValue: true
