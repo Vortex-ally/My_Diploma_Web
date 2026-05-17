@@ -13,6 +13,24 @@ class ProjectForm(forms.ModelForm):
             "description": forms.Textarea(attrs={"rows": 3}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for fname in [
+            "max_volunteers",
+            "price",
+            "description",
+            "location",
+            "organization",
+        ]:
+            if fname in self.fields:
+                self.fields[fname].required = False
+
+    def clean_price(self):
+        return self.cleaned_data.get("price") or 0
+
+    def clean_max_volunteers(self):
+        return self.cleaned_data.get("max_volunteers") or 0
+
 
 class VolunteerReviewForm(forms.ModelForm):
     class Meta:

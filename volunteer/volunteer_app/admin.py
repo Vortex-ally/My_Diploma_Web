@@ -2,7 +2,23 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
 
-from .models import UserProfile
+from .models import (
+    ArchiveRequest,
+    EventTemplate,
+    GroupTemplate,
+    HoursTemplate,
+    Message,
+    Organization,
+    PrioritySpot,
+    Project,
+    Rating,
+    Request,
+    UserProfile,
+    UserSubscription,
+    VolunteerGoal,
+    VolunteerReview,
+    WorkTypeTemplate,
+)
 
 
 # Define an inline admin descriptor for UserProfile model
@@ -100,3 +116,39 @@ class CustomUserAdmin(UserAdmin):
 # Re-register UserAdmin
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
+
+
+@admin.register(Project)
+class ProjectAdmin(admin.ModelAdmin):
+    list_display = ("name", "organiser", "date", "hours", "max_volunteers", "status", "organization")
+    list_filter = ("status", "organization")
+    search_fields = ("name", "organiser__username")
+    autocomplete_fields = ("organiser", "organization")
+
+
+@admin.register(Request)
+class RequestAdmin(admin.ModelAdmin):
+    list_display = ("Volunteer", "event", "status", "date_requested", "approved_hours")
+    list_filter = ("status",)
+    search_fields = ("Volunteer__username", "event__name")
+    autocomplete_fields = ("Volunteer", "event")
+
+
+@admin.register(Organization)
+class OrganizationAdmin(admin.ModelAdmin):
+    list_display = ("name", "owner", "site_name", "created_at")
+    search_fields = ("name", "owner__username")
+    prepopulated_fields = {"slug": ("name",)}
+
+
+admin.site.register(GroupTemplate)
+admin.site.register(EventTemplate)
+admin.site.register(WorkTypeTemplate)
+admin.site.register(HoursTemplate)
+admin.site.register(VolunteerGoal)
+admin.site.register(VolunteerReview)
+admin.site.register(UserSubscription)
+admin.site.register(PrioritySpot)
+admin.site.register(ArchiveRequest)
+admin.site.register(Message)
+admin.site.register(Rating)
