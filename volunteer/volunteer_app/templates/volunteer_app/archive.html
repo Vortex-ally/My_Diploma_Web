@@ -1,0 +1,125 @@
+{% load static %}
+
+<!doctype html>
+<html lang="uk">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Архів заявок - BoscoVolunteer</title>
+  <link rel="stylesheet" href="{% static 'volunteer_app/auth.css' %}" />
+  <link rel="stylesheet" href="{% static 'volunteer_app/dashboard.css' %}" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    .archive-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .archive-stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.03);
+      text-align: center;
+    }
+
+    .archive-stat-card h3 {
+      font-size: 32px;
+      color: var(--primary-color);
+      margin: 0 0 10px 0;
+    }
+
+    .archive-stat-card p {
+      color: var(--text-secondary);
+      margin: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="sidebar">
+    <div class="logo">
+      <i class="fas fa-hand-holding-heart"></i>
+      <span>{% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}</span>
+    </div>
+    <ul class="nav-links">
+      <li>
+        <a href="{% url 'dashboard' %}"><i class="fas fa-tachometer-alt"></i> На головну</a>
+      </li>
+      <li style="margin-top: 50px">
+        <a href="{% url 'logout' %}" style="color: #ef4444"><i class="fas fa-sign-out-alt"></i> Вихід</a>
+      </li>
+    </ul>
+  </div>
+
+  <div class="main-content">
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <div class="brand">
+          <h2>Архів заявок</h2>
+          <p class="subtitle">Історія всіх заявок на волонтерство</p>
+        </div>
+      </div>
+    </header>
+
+    <div class="archive-stats">
+      <div class="archive-stat-card">
+        <h3>{{ archived_requests.count }}</h3>
+        <p>Всього архівних заявок</p>
+      </div>
+      <div class="archive-stat-card">
+        <h3>{{ archived_requests|length }}</h3>
+        <p>Завершених робіт</p>
+      </div>
+    </div>
+
+    <div class="recent-grid">
+      <table>
+        <thead>
+          <tr>
+            <th>Волонтер</th>
+            <th>Подія</th>
+            <th>Дата подачі</th>
+            <th>Дата завершення</th>
+            <th>Статус</th>
+            <th>Години</th>
+            <th>Оцінка</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for req in archived_requests %}
+          <tr>
+            <td>{{ req.volunteer.get_full_name|default:req.volunteer.username }}</td>
+            <td>{{ req.event.name }}</td>
+            <td>{{ req.date_requested|date:"d.m.Y" }}</td>
+            <td>{% if req.date_completed %}{{ req.date_completed|date:"d.m.Y" }}{% else %}—{% endif %}</td>
+            <td>
+              <span class="status {% if req.status == 'completed' %}active{% elif req.status == 'rejected' %}completed{% else %}pending{% endif %}">
+                {{ req.get_status_display|default:req.status }}
+              </span>
+            </td>
+            <td>{{ req.approved_hours|default:0 }}</td>
+            <td>
+              {% if req.star_rating %}
+              <i class="fas fa-star" style="color: #f59e0b;"></i> Відмінно
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+              <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 15px; display: block;"></i>
+              Архів порожній
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+
+</html>

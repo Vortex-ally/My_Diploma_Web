@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: boscovolunteer
+    runtime: python
+    buildCommand: "./build.sh"
+    startCommand: "cd volunteer && gunicorn volunteer.wsgi:application --bind 0.0.0.0:$PORT --timeout 120 --workers 1"
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "false"
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: boscovolunteer-db
+          property: connectionString
+      - key: PYTHON_VERSION
+        value: "3.13.0"
+      - key: DJANGO_SUPERUSER_USERNAME
+        value: admin
+      - key: DJANGO_SUPERUSER_EMAIL
+        value: admin@boscovolunteer.com
+      - key: DJANGO_SUPERUSER_PASSWORD
+        generateValue: true
+
+databases:
+  - name: boscovolunteer-db
+    databaseName: boscovolunteer
+    user: boscovolunteer
+    plan: free

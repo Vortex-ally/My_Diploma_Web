@@ -1,0 +1,185 @@
+{% load static %}
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Аналітика — BoscoVolunteer</title>
+  <link rel="stylesheet" href="{% static 'volunteer_app/auth.css' %}"/>
+  <link rel="stylesheet" href="{% static 'volunteer_app/dashboard.css' %}"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .analytics-header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
+    .analytics-header h1 { font-size: 26px; font-weight: 800; color: #1e1b4b; margin: 0; }
+    .stat-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 30px; }
+    .stat-card {
+      background: white; border-radius: 14px; padding: 22px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05); text-align: center;
+    }
+    .stat-card .num { font-size: 36px; font-weight: 800; color: #4f46e5; }
+    .stat-card .lbl { font-size: 13px; color: #6b7280; margin-top: 4px; }
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 30px; }
+    .chart-card {
+      background: white; border-radius: 14px; padding: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .chart-card h3 { font-size: 15px; font-weight: 700; color: #374151; margin: 0 0 16px 0; }
+    .table-card {
+      background: white; border-radius: 14px; padding: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .table-card h3 { font-size: 15px; font-weight: 700; color: #374151; margin: 0 0 16px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f9fafb; padding: 10px 14px; text-align: left; font-size: 12px;
+         font-weight: 700; color: #6b7280; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; }
+    td { padding: 12px 14px; font-size: 14px; border-bottom: 1px solid #f3f4f6; }
+    tr:last-child td { border-bottom: none; }
+    .stars { color: #f59e0b; }
+    .no-data { color: #9ca3af; font-style: italic; }
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #f3f4f6; color: #374151; padding: 9px 18px;
+      border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px;
+      transition: background 0.2s;
+    }
+    .back-btn:hover { background: #e5e7eb; }
+    @media (max-width: 768px) { .charts-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div style="max-width: 1100px; margin: 0 auto; padding: 30px 20px;">
+
+  <div class="analytics-header">
+    <a href="{% url 'dashboard' %}" class="back-btn"><i class="fas fa-arrow-left"></i> Назад</a>
+    <h1><i class="fas fa-chart-line" style="color:#4f46e5"></i> Розширена аналітика</h1>
+  </div>
+
+  <div class="stat-cards">
+    <div class="stat-card">
+      <div class="num">{{ total_projects }}</div>
+      <div class="lbl">Подій всього</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">{{ total_volunteers }}</div>
+      <div class="lbl">Унікальних волонтерів</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">{{ total_reviews }}</div>
+      <div class="lbl">Відгуків</div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3><i class="fas fa-users"></i> Волонтери по подіях</h3>
+      <canvas id="volunteersChart" height="220"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3><i class="fas fa-star"></i> Середній рейтинг по подіях</h3>
+      <canvas id="ratingsChart" height="220"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3><i class="fas fa-check-circle"></i> Виконання по подіях</h3>
+      <canvas id="completionChart" height="220"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3><i class="fas fa-star-half-alt"></i> Розподіл оцінок (1–5 ★)</h3>
+      <canvas id="ratingDistChart" height="220"></canvas>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <h3><i class="fas fa-table"></i> Детальна статистика по подіях</h3>
+    {% if project_stats %}
+    <table>
+      <thead>
+        <tr>
+          <th>Подія</th>
+          <th>Заявок</th>
+          <th>Схвалено</th>
+          <th>Завершено</th>
+          <th>Зірочок</th>
+          <th>Сер. оцінка</th>
+          <th>Відгуків</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in project_stats %}
+        <tr>
+          <td><strong>{{ s.project.name }}</strong></td>
+          <td>{{ s.total }}</td>
+          <td>{{ s.approved }}</td>
+          <td>{{ s.completed }}</td>
+          <td class="stars">{{ s.stars }} ★</td>
+          <td>
+            {% if s.avg_rating %}
+              <span class="stars">{{ s.avg_rating }} ★</span>
+            {% else %}
+              <span class="no-data">—</span>
+            {% endif %}
+          </td>
+          <td>{{ s.reviews_count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="no-data">Подій ще немає</p>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+const labels = {{ chart_labels|safe }};
+const approved = {{ chart_approved|safe }};
+const completed = {{ chart_completed|safe }};
+const ratings = {{ chart_ratings|safe }};
+const ratingDist = {{ chart_rating_dist|safe }};
+
+const commonOpts = { responsive: true, plugins: { legend: { position: 'bottom' } } };
+
+new Chart(document.getElementById('volunteersChart'), {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [
+      { label: 'Схвалено', data: approved, backgroundColor: '#818cf8' },
+      { label: 'Завершено', data: completed, backgroundColor: '#4f46e5' },
+    ]
+  },
+  options: { ...commonOpts, scales: { y: { beginAtZero: true } } }
+});
+
+new Chart(document.getElementById('ratingsChart'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [{ label: 'Сер. оцінка', data: ratings, borderColor: '#f59e0b',
+      backgroundColor: 'rgba(245,158,11,0.1)', tension: 0.4, fill: true, pointRadius: 4 }]
+  },
+  options: { ...commonOpts, scales: { y: { beginAtZero: true, max: 5 } } }
+});
+
+new Chart(document.getElementById('completionChart'), {
+  type: 'doughnut',
+  data: {
+    labels: labels.length ? labels : ['Немає даних'],
+    datasets: [{ data: completed.length ? completed : [1],
+      backgroundColor: ['#4f46e5','#818cf8','#c7d2fe','#e0e7ff','#7c3aed','#6d28d9','#a78bfa'] }]
+  },
+  options: commonOpts
+});
+
+new Chart(document.getElementById('ratingDistChart'), {
+  type: 'bar',
+  data: {
+    labels: ['1 ★', '2 ★', '3 ★', '4 ★', '5 ★'],
+    datasets: [{ label: 'Кількість оцінок', data: ratingDist,
+      backgroundColor: ['#ef4444','#f97316','#eab308','#84cc16','#22c55e'] }]
+  },
+  options: { ...commonOpts, scales: { y: { beginAtZero: true } } }
+});
+</script>
+</body>
+</html>

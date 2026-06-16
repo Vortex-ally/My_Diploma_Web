@@ -1,0 +1,571 @@
+{% load static %}
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{{ project.name }} — BoscoVolunteer</title>
+  <link rel="stylesheet" href="{% static 'volunteer_app/auth.css' %}"/>
+  <link rel="stylesheet" href="{% static 'volunteer_app/dashboard.css' %}"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    .page-wrapper { margin-left: var(--sidebar-width); min-height: 100vh; background: #f8f9fe; }
+
+    /* Sidebar nav */
+    .sidebar-nav a {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-radius: 10px; color: rgba(255,255,255,0.65);
+      font-weight: 600; font-size: 14px; text-decoration: none; transition: all .2s;
+    }
+    .sidebar-nav a:hover, .sidebar-nav a.active {
+      background: rgba(255,255,255,0.12); color: white;
+    }
+    .sidebar-nav a i { width: 18px; text-align: center; }
+
+    /* Hero */
+    .hero-banner {
+      position: relative; height: 200px; overflow: hidden;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed, #a855f7);
+    }
+    .hero-pattern {
+      position: absolute; inset: 0; opacity: .07;
+      background-image:
+        radial-gradient(circle at 25% 50%, white 1px, transparent 1px),
+        radial-gradient(circle at 75% 20%, white 1px, transparent 1px);
+      background-size: 40px 40px, 60px 60px;
+    }
+    .hero-shapes {
+      position: absolute; top: -40px; right: -40px;
+      width: 280px; height: 280px; border-radius: 50%;
+      background: rgba(255,255,255,.05);
+    }
+    .hero-back {
+      position: absolute; top: 24px; left: 24px; z-index: 10;
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,.18); color: white;
+      padding: 8px 16px; border-radius: 10px; text-decoration: none;
+      font-weight: 600; font-size: 13px; backdrop-filter: blur(8px);
+      transition: background .2s;
+    }
+    .hero-back:hover { background: rgba(255,255,255,.28); }
+    .hero-actions {
+      position: absolute; top: 24px; right: 24px; z-index: 10;
+      display: flex; gap: 10px;
+    }
+    .hero-content {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: 0 40px 28px; z-index: 5;
+    }
+    .project-avatar {
+      width: 56px; height: 56px; border-radius: 16px;
+      background: white; display: flex; align-items: center; justify-content: center;
+      font-size: 24px; color: #4f46e5; margin-bottom: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.2);
+    }
+    .hero-content h1 { font-size: 26px; font-weight: 900; color: white; margin: 0 0 6px; }
+    .hero-meta { display: flex; gap: 16px; flex-wrap: wrap; }
+    .hero-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: rgba(255,255,255,.2); color: white;
+      font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 8px;
+      backdrop-filter: blur(6px);
+    }
+
+    /* Stats strip */
+    .stats-strip {
+      background: white; display: flex; gap: 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,.06);
+    }
+    .stat-item {
+      flex: 1; padding: 18px 20px; text-align: center;
+      border-right: 1px solid #f3f4f6; position: relative;
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-item .snum { font-size: 24px; font-weight: 800; }
+    .stat-item .slbl { font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: .4px; margin-top: 2px; }
+    .snum.purple { color: #7c3aed; }
+    .snum.green  { color: #059669; }
+    .snum.blue   { color: #0891b2; }
+    .snum.orange { color: #d97706; }
+    .snum.red    { color: #dc2626; }
+
+    /* Content */
+    .content-area { padding: 32px 40px; display: grid; grid-template-columns: 1fr 340px; gap: 24px; }
+    @media (max-width: 900px) {
+      .content-area { grid-template-columns: 1fr; }
+      .page-wrapper { margin-left: 0; }
+      .hero-content { padding: 0 20px 24px; }
+    }
+
+    /* Cards */
+    .info-card {
+      background: white; border-radius: 16px; padding: 24px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.06); margin-bottom: 20px;
+    }
+    .info-card h3 {
+      font-size: 16px; font-weight: 800; color: #1e1b4b;
+      margin: 0 0 16px; display: flex; align-items: center; gap: 8px;
+    }
+    .info-card h3 i { color: #4f46e5; }
+
+    /* Description */
+    .desc-text { font-size: 14px; color: #374151; line-height: 1.7; }
+
+    /* Meta rows */
+    .meta-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 14px; color: #374151;
+    }
+    .meta-row:last-child { border-bottom: none; }
+    .meta-row i { width: 18px; text-align: center; color: #4f46e5; font-size: 13px; flex-shrink: 0; }
+    .meta-label { color: #9ca3af; font-size: 12px; min-width: 90px; }
+
+    /* Status badge */
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700;
+    }
+    .status-pending  { background: #fef3c7; color: #92400e; }
+    .status-approved { background: #d1fae5; color: #065f46; }
+    .status-completed{ background: #dbeafe; color: #1e40af; }
+    .status-rejected { background: #fee2e2; color: #991b1b; }
+
+    /* Applicants table */
+    .applicants-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .applicants-table th {
+      text-align: left; padding: 10px 12px;
+      background: #f8f9fe; color: #6b7280; font-weight: 700;
+      font-size: 11px; text-transform: uppercase; letter-spacing: .4px;
+    }
+    .applicants-table td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; }
+    .applicants-table tr:last-child td { border-bottom: none; }
+    .applicants-table tr:hover td { background: #f8f9fe; }
+    .user-cell { display: flex; align-items: center; gap: 8px; }
+    .user-avatar-sm {
+      width: 30px; height: 30px; border-radius: 8px; overflow: hidden; flex-shrink: 0;
+    }
+    .user-avatar-sm img { width: 100%; height: 100%; object-fit: cover; }
+    .user-name-sm { font-weight: 600; color: #1e1b4b; }
+    .user-group-sm { font-size: 11px; color: #9ca3af; }
+
+    /* Actions in table */
+    .tbl-actions { display: flex; gap: 6px; }
+    .btn-tbl {
+      padding: 5px 10px; border-radius: 7px; font-size: 11px; font-weight: 700;
+      cursor: pointer; border: none; transition: all .2s; display: inline-flex;
+      align-items: center; gap: 4px;
+    }
+    .btn-approve { background: #d1fae5; color: #065f46; }
+    .btn-approve:hover { background: #a7f3d0; }
+    .btn-reject  { background: #fee2e2; color: #991b1b; }
+    .btn-reject:hover  { background: #fecaca; }
+    .btn-complete{ background: #dbeafe; color: #1e40af; }
+    .btn-complete:hover{ background: #bfdbfe; }
+
+    /* Reviews */
+    .review-item { padding: 14px 0; border-bottom: 1px solid #f3f4f6; }
+    .review-item:last-child { border-bottom: none; }
+    .review-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .review-name { font-size: 13px; font-weight: 700; color: #1e1b4b; }
+    .stars { color: #f59e0b; font-size: 13px; }
+    .review-date { font-size: 11px; color: #9ca3af; margin-left: auto; }
+    .review-text { font-size: 13px; color: #6b7280; line-height: 1.5; }
+
+    /* Delete button */
+    .btn-danger {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #ef4444; color: white; border: none;
+      padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: all .2s; text-decoration: none;
+    }
+    .btn-danger:hover { background: #dc2626; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(239,68,68,.3); }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,.18); color: white; border: none;
+      padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: background .2s; text-decoration: none;
+      backdrop-filter: blur(8px);
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,.28); }
+
+    /* Organizer card */
+    .org-card-row {
+      display: flex; align-items: center; gap: 14px;
+    }
+    .org-avatar-lg {
+      width: 50px; height: 50px; border-radius: 14px; overflow: hidden; flex-shrink: 0;
+    }
+    .org-avatar-lg img { width: 100%; height: 100%; object-fit: cover; }
+    .org-name { font-size: 15px; font-weight: 700; color: #1e1b4b; }
+    .org-role { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center; padding: 32px 20px; color: #9ca3af;
+    }
+    .empty-state i { font-size: 36px; margin-bottom: 10px; display: block; }
+    .empty-state p { font-size: 14px; margin: 0; }
+
+    /* Confirm modal */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 2000;
+      background: rgba(0,0,0,.5); align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: white; border-radius: 18px; padding: 32px;
+      width: 420px; max-width: 94%; box-shadow: 0 24px 60px rgba(0,0,0,.2);
+      text-align: center;
+    }
+    .modal-icon { font-size: 44px; color: #ef4444; margin-bottom: 16px; }
+    .modal-box h3 { font-size: 20px; font-weight: 800; color: #1e1b4b; margin: 0 0 8px; }
+    .modal-box p { font-size: 14px; color: #6b7280; margin: 0 0 24px; line-height: 1.6; }
+    .modal-actions { display: flex; gap: 12px; justify-content: center; }
+    .btn-cancel {
+      padding: 10px 24px; border-radius: 10px; font-size: 14px; font-weight: 700;
+      border: 2px solid #e5e7eb; background: white; color: #374151; cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-cancel:hover { border-color: #d1d5db; background: #f9fafb; }
+    .btn-confirm-delete {
+      padding: 10px 24px; border-radius: 10px; font-size: 14px; font-weight: 700;
+      border: none; background: #ef4444; color: white; cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-confirm-delete:hover { background: #dc2626; }
+
+    /* Messages */
+    .alert { padding: 12px 18px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .alert-success { background: #d1fae5; color: #065f46; }
+    .alert-error   { background: #fee2e2; color: #991b1b; }
+    .alert-info    { background: #dbeafe; color: #1e40af; }
+  </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="logo">
+    <div class="brand-icon"><i class="fas fa-hand-holding-heart"></i></div>
+    <div class="logo-text">
+      <span class="brand-name">BoscoVolunteer</span>
+      <span class="brand-tag">Спільнота</span>
+    </div>
+  </div>
+  <ul class="nav-links sidebar-nav">
+    <li><a href="{% url 'dashboard' %}" class="active"><i class="fas fa-th-large"></i> Дашборд</a></li>
+    <li><a href="{% url 'events' %}"><i class="fas fa-calendar"></i> Всі події</a></li>
+    <li><a href="{% url 'analytics' %}"><i class="fas fa-chart-bar"></i> Аналітика</a></li>
+    <li><a href="{% url 'organization_list' %}"><i class="fas fa-building"></i> Спільноти</a></li>
+    <li><a href="{% url 'chat' %}"><i class="fas fa-comments"></i> Чат</a></li>
+    <li style="margin-top:40px">
+      <a href="{% url 'logout' %}" style="color:#ef4444"><i class="fas fa-sign-out-alt"></i> Вихід</a>
+    </li>
+  </ul>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- Hero -->
+  <div class="hero-banner">
+    <div class="hero-pattern"></div>
+    <div class="hero-shapes"></div>
+    <a href="{% url 'dashboard' %}" class="hero-back">
+      <i class="fas fa-arrow-left"></i> Назад
+    </a>
+    {% if can_delete %}
+    <div class="hero-actions">
+      <button class="btn-danger" onclick="openDeleteModal()">
+        <i class="fas fa-trash"></i> Видалити
+      </button>
+    </div>
+    {% endif %}
+    <div class="hero-content">
+      <div class="project-avatar"><i class="fas fa-calendar-check"></i></div>
+      <h1>{{ project.name }}</h1>
+      <div class="hero-meta">
+        <span class="hero-chip"><i class="fas fa-calendar"></i> {{ project.date|date:"d.m.Y H:i" }}</span>
+        <span class="hero-chip"><i class="fas fa-clock"></i> {{ project.hours }} год</span>
+        {% if project.location %}
+        <span class="hero-chip"><i class="fas fa-map-marker-alt"></i> {{ project.location }}</span>
+        {% endif %}
+        {% if project.price > 0 %}
+        <span class="hero-chip"><i class="fas fa-dollar-sign"></i> ${{ project.price }}</span>
+        {% else %}
+        <span class="hero-chip"><i class="fas fa-gift"></i> Безкоштовно</span>
+        {% endif %}
+        {% if project.max_volunteers > 0 %}
+        <span class="hero-chip"><i class="fas fa-users"></i> {{ project.current_volunteers }}/{{ project.max_volunteers }}</span>
+        {% else %}
+        <span class="hero-chip"><i class="fas fa-infinity"></i> Без обмежень</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats strip -->
+  <div class="stats-strip">
+    <div class="stat-item">
+      <div class="snum purple">{{ stats.total }}</div>
+      <div class="slbl">Всього заявок</div>
+    </div>
+    <div class="stat-item">
+      <div class="snum orange">{{ stats.pending }}</div>
+      <div class="slbl">В очікуванні</div>
+    </div>
+    <div class="stat-item">
+      <div class="snum green">{{ stats.approved }}</div>
+      <div class="slbl">Схвалено</div>
+    </div>
+    <div class="stat-item">
+      <div class="snum blue">{{ stats.completed }}</div>
+      <div class="slbl">Відпрацьовано</div>
+    </div>
+    <div class="stat-item">
+      <div class="snum red">{{ stats.rejected }}</div>
+      <div class="slbl">Відхилено</div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content-area">
+
+    <!-- Left column -->
+    <div>
+      {% if messages %}
+      {% for message in messages %}
+      <div class="alert alert-{{ message.tags|default:'info' }}">
+        <i class="fas fa-info-circle"></i> {{ message }}
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      <!-- Description -->
+      <div class="info-card">
+        <h3><i class="fas fa-align-left"></i> Опис завдання</h3>
+        {% if project.description %}
+        <p class="desc-text">{{ project.description }}</p>
+        {% else %}
+        <p class="desc-text" style="color:#9ca3af;font-style:italic">Опис не вказано.</p>
+        {% endif %}
+      </div>
+
+      <!-- Applicants -->
+      <div class="info-card">
+        <h3><i class="fas fa-users"></i> Учасники ({{ stats.total }})</h3>
+        {% if requests_qs %}
+        <div style="overflow-x:auto;">
+          <table class="applicants-table">
+            <thead>
+              <tr>
+                <th>Волонтер</th>
+                <th>Група</th>
+                <th>Статус</th>
+                <th>Дата заявки</th>
+                <th>Години</th>
+                <th>Дії</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for req in requests_qs %}
+              <tr>
+                <td>
+                  <div class="user-cell">
+                    <div class="user-avatar-sm">
+                      <img src="https://ui-avatars.com/api/?name={{ req.Volunteer.get_full_name|default:req.Volunteer.username|urlencode }}&size=30&background=e0e7ff&color=4f46e5" alt="">
+                    </div>
+                    <div>
+                      <div class="user-name-sm">{{ req.Volunteer.get_full_name|default:req.Volunteer.username }}</div>
+                      <div class="user-group-sm">{{ req.Volunteer.email }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style="font-size:12px;color:#6b7280;">
+                  {% if req.Volunteer.profile.group_name %}{{ req.Volunteer.profile.group_name }}{% else %}-{% endif %}
+                </td>
+                <td>
+                  <span class="status-badge status-{{ req.status }}">
+                    {% if req.status == 'pending' %}<i class="fas fa-clock"></i> В очікуванні
+                    {% elif req.status == 'approved' %}<i class="fas fa-check"></i> Схвалено
+                    {% elif req.status == 'completed' %}<i class="fas fa-flag"></i> Відпрацьовано
+                    {% elif req.status == 'rejected' %}<i class="fas fa-times"></i> Відхилено
+                    {% endif %}
+                  </span>
+                  {% if req.star_rating %}
+                  <span style="margin-left:4px;color:#f59e0b;" title="Зірочка за роботу"><i class="fas fa-star"></i></span>
+                  {% endif %}
+                </td>
+                <td style="font-size:12px;color:#9ca3af;">{{ req.date_requested|date:"d.m.Y" }}</td>
+                <td style="font-size:13px;font-weight:600;color:#4f46e5;">
+                  {% if req.approved_hours %}{{ req.approved_hours }}{% else %}{{ project.hours }}{% endif %} год
+                </td>
+                <td>
+                  <div class="tbl-actions">
+                    {% if req.status == 'pending' %}
+                    <a href="{% url 'manage_request' req.id 'approve' %}" class="btn-tbl btn-approve" title="Схвалити"><i class="fas fa-check"></i></a>
+                    <a href="{% url 'manage_request' req.id 'reject' %}" class="btn-tbl btn-reject" title="Відхилити"><i class="fas fa-times"></i></a>
+                    {% elif req.status == 'approved' %}
+                    <a href="{% url 'manage_request' req.id 'complete' %}" class="btn-tbl btn-complete" title="Завершити"><i class="fas fa-flag-checkered"></i></a>
+                    <a href="{% url 'manage_request' req.id 'reject' %}" class="btn-tbl btn-reject" title="Відхилити"><i class="fas fa-times"></i></a>
+                    {% endif %}
+                    <a href="{% url 'view_user_profile' req.Volunteer.username %}" class="btn-tbl" style="background:#e0e7ff;color:#4f46e5;" title="Профіль"><i class="fas fa-user"></i></a>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+          <i class="fas fa-user-slash"></i>
+          <p>Заявок ще немає</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Reviews -->
+      <div class="info-card">
+        <h3><i class="fas fa-star"></i> Відгуки ({{ reviews.count }})</h3>
+        {% if reviews %}
+        {% for rev in reviews %}
+        <div class="review-item">
+          <div class="review-header">
+            <img src="https://ui-avatars.com/api/?name={{ rev.volunteer.get_full_name|default:rev.volunteer.username|urlencode }}&size=28&background=e0e7ff&color=4f46e5" style="width:28px;height:28px;border-radius:8px;" alt="">
+            <span class="review-name">{{ rev.volunteer.get_full_name|default:rev.volunteer.username }}</span>
+            <span class="stars">
+              {% for i in "12345" %}{% if forloop.counter <= rev.rating %}★{% else %}☆{% endif %}{% endfor %}
+            </span>
+            <span class="review-date">{{ rev.created_at|date:"d.m.Y" }}</span>
+          </div>
+          {% if rev.comment %}
+          <div class="review-text">{{ rev.comment }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state">
+          <i class="fas fa-comment-slash"></i>
+          <p>Відгуків ще немає</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Right column (sidebar) -->
+    <div>
+
+      <!-- Project info -->
+      <div class="info-card">
+        <h3><i class="fas fa-info-circle"></i> Деталі</h3>
+        <div class="meta-row">
+          <i class="fas fa-calendar"></i>
+          <span class="meta-label">Дата</span>
+          <span>{{ project.date|date:"d.m.Y H:i" }}</span>
+        </div>
+        <div class="meta-row">
+          <i class="fas fa-clock"></i>
+          <span class="meta-label">Години</span>
+          <span><strong>{{ project.hours }}</strong> год</span>
+        </div>
+        {% if project.location %}
+        <div class="meta-row">
+          <i class="fas fa-map-marker-alt"></i>
+          <span class="meta-label">Місце</span>
+          <span>{{ project.location }}</span>
+        </div>
+        {% endif %}
+        <div class="meta-row">
+          <i class="fas fa-users"></i>
+          <span class="meta-label">Волонтери</span>
+          {% if project.max_volunteers > 0 %}
+          <span>{{ project.current_volunteers }} / {{ project.max_volunteers }}</span>
+          {% else %}
+          <span>Без обмежень</span>
+          {% endif %}
+        </div>
+        <div class="meta-row">
+          <i class="fas fa-dollar-sign"></i>
+          <span class="meta-label">Вартість</span>
+          {% if project.price > 0 %}
+          <span style="color:#d97706;font-weight:700;">${{ project.price }}</span>
+          {% else %}
+          <span style="color:#059669;font-weight:700;">Безкоштовно</span>
+          {% endif %}
+        </div>
+        {% if project.organization %}
+        <div class="meta-row">
+          <i class="fas fa-building"></i>
+          <span class="meta-label">Спільнота</span>
+          <a href="{% url 'organization_detail' project.organization.slug %}" style="color:#4f46e5;font-weight:600;text-decoration:none;">
+            {{ project.organization.name }}
+          </a>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Organizer -->
+      <div class="info-card">
+        <h3><i class="fas fa-user-tie"></i> Організатор</h3>
+        <div class="org-card-row">
+          <div class="org-avatar-lg">
+            <img src="https://ui-avatars.com/api/?name={{ project.organiser.get_full_name|default:project.organiser.username|urlencode }}&size=50&background=4f46e5&color=fff" alt="">
+          </div>
+          <div>
+            <div class="org-name">{{ project.organiser.get_full_name|default:project.organiser.username }}</div>
+            <div class="org-role">{{ project.organiser.email }}</div>
+          </div>
+        </div>
+        {% if is_admin %}
+        <div style="margin-top:14px;">
+          <a href="{% url 'view_user_profile' project.organiser.username %}" style="font-size:13px;color:#4f46e5;font-weight:600;text-decoration:none;"><i class="fas fa-external-link-alt"></i> Переглянути профіль</a>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Delete section (admin/organizer) -->
+      {% if can_delete %}
+      <div class="info-card" style="border: 2px solid #fee2e2;">
+        <h3 style="color:#ef4444;"><i class="fas fa-exclamation-triangle" style="color:#ef4444;"></i> Небезпечна зона</h3>
+        <p style="font-size:13px;color:#6b7280;margin:0 0 16px;">Видалення завдання є незворотною дією. Всі заявки та дані будуть видалені.</p>
+        <button class="btn-danger" style="width:100%;justify-content:center;" onclick="openDeleteModal()">
+          <i class="fas fa-trash"></i> Видалити завдання
+        </button>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirmation modal -->
+{% if can_delete %}
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal-box">
+    <div class="modal-icon"><i class="fas fa-trash-alt"></i></div>
+    <h3>Видалити завдання?</h3>
+    <p>Ви впевнені, що хочете видалити <strong>«{{ project.name }}»</strong>?<br>Цю дію неможливо скасувати.</p>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeDeleteModal()">Скасувати</button>
+      <form method="POST" action="{% url 'delete_project' project.id %}" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" class="btn-confirm-delete"><i class="fas fa-trash"></i> Видалити</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script>
+function openDeleteModal() {
+  document.getElementById('delete-modal').classList.add('open');
+}
+function closeDeleteModal() {
+  document.getElementById('delete-modal').classList.remove('open');
+}
+document.getElementById('delete-modal')?.addEventListener('click', function(e) {
+  if (e.target === this) closeDeleteModal();
+});
+</script>
+</body>
+</html>

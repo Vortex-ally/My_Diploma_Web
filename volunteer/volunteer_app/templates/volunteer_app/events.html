@@ -1,0 +1,305 @@
+{% load static %}
+
+<!doctype html>
+<html lang="uk">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Волонтерські роботи - BoscoVolunteer</title>
+  <link rel="stylesheet" href="{% static 'volunteer_app/auth.css' %}" />
+  <link rel="stylesheet" href="{% static 'volunteer_app/dashboard.css' %}" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    .events-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .event-card {
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.03);
+      overflow: hidden;
+      transition: transform 0.2s;
+    }
+
+    .event-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    }
+
+    .event-header {
+      background: linear-gradient(135deg, var(--primary-color), #6366f1);
+      padding: 20px;
+      color: white;
+    }
+
+    .event-header h3 {
+      margin: 0 0 10px 0;
+      font-size: 18px;
+    }
+
+    .event-header .location {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .event-body {
+      padding: 20px;
+    }
+
+    .event-info {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 15px;
+    }
+
+    .event-info-item {
+      text-align: center;
+    }
+
+    .event-info-item .label {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .event-info-item .value {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .event-status {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .event-status.active {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .event-status.completed {
+      background: #e5e7eb;
+      color: #6b7280;
+    }
+
+    .event-status.pending {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .event-actions {
+      padding: 15px 20px;
+      border-top: 1px solid #eee;
+      display: flex;
+      gap: 10px;
+    }
+
+    .event-actions a {
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .event-actions .btn-apply {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .event-actions .btn-apply:hover {
+      background: #4338ca;
+    }
+
+    .event-actions .btn-details {
+      background: #f3f4f6;
+      color: var(--text-primary);
+    }
+
+    .event-actions .btn-details:hover {
+      background: #e5e7eb;
+    }
+
+    .filter-bar {
+      display: flex;
+      gap: 15px;
+      padding: 20px;
+      background: white;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .filter-bar select,
+    .filter-bar input {
+      padding: 10px 15px;
+      border: 1px solid #eee;
+      border-radius: 8px;
+      outline: none;
+      font-size: 14px;
+    }
+
+    .filter-bar select:focus,
+    .filter-bar input:focus {
+      border-color: var(--primary-color);
+    }
+
+    .filter-bar input {
+      flex: 1;
+      min-width: 200px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="sidebar">
+    <div class="logo">
+      <i class="fas fa-hand-holding-heart"></i>
+      <span>BoscoVolunteer</span>
+    </div>
+    <ul class="nav-links">
+      <li>
+        <a href="{% url 'dashboard' %}"><i class="fas fa-tachometer-alt"></i> На головну</a>
+      </li>
+      {% if user.is_authenticated %}
+      <li>
+        <a href="{% url 'chat' %}"><i class="fas fa-comments"></i> Чат</a>
+      </li>
+      {% endif %}
+      <li style="margin-top: 50px">
+        {% if user.is_authenticated %}
+        <a href="{% url 'logout' %}" style="color: #ef4444"><i class="fas fa-sign-out-alt"></i> Вихід</a>
+        {% else %}
+        <a href="{% url 'login' %}"><i class="fas fa-sign-in-alt"></i> Вхід</a>
+        {% endif %}
+      </li>
+    </ul>
+  </div>
+
+  <div class="main-content">
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <div class="brand">
+          <h2>Волонтерські роботи</h2>
+          <p class="subtitle">Оберіть волонтерську роботу та подайте заявку</p>
+        </div>
+      </div>
+    </header>
+
+    <div class="filter-bar">
+      <input type="text" id="search-input" placeholder="Пошук за назвою..." onkeyup="filterEvents()">
+      <select id="status-filter" onchange="filterEvents()">
+        <option value="all">Всі статуси</option>
+        <option value="active">Активні</option>
+        <option value="completed">Завершені</option>
+      </select>
+      <select id="hours-filter" onchange="filterEvents()">
+        <option value="all">Всі години</option>
+        <option value="1-4">1-4 години</option>
+        <option value="5-8">5-8 годин</option>
+        <option value="9+">9+ годин</option>
+      </select>
+    </div>
+
+    <div class="events-grid" id="events-grid">
+      {% for project in projects %}
+      <div class="event-card" data-name="{{ project.name|lower }}" data-hours="{{ project.hours }}" data-status="{{ project.status }}">
+        <div class="event-header">
+          <h3>{{ project.name }}</h3>
+          <div class="location"><i class="fas fa-map-marker-alt"></i> {{ project.organiser.get_full_name|default:project.organiser.username }}</div>
+        </div>
+        <div class="event-body">
+          <div class="event-info">
+            <div class="event-info-item">
+              <div class="label">Дата</div>
+              <div class="value">{{ project.date|date:"d.m.Y" }}</div>
+            </div>
+            <div class="event-info-item">
+              <div class="label">Години</div>
+              <div class="value">{{ project.hours }}</div>
+            </div>
+            <div class="event-info-item">
+              <div class="label">Волонтерів</div>
+              <div class="value">{{ project.current_volunteers }}/{% if project.max_volunteers %}{{ project.max_volunteers }}{% else %}∞{% endif %}</div>
+            </div>
+          </div>
+          <span class="event-status 
+            {% if project.status == 'approved' %}active
+            {% elif project.status == 'completed' %}completed
+            {% else %}pending{% endif %}">
+            {% if project.status == 'approved' %}Активно
+            {% elif project.status == 'completed' %}Завершено
+            {% else %}Відкрито{% endif %}
+          </span>
+        </div>
+        <div class="event-actions">
+          {% if user.is_authenticated %}
+          <a href="{% url 'project_detail' project.id %}" class="btn-details">
+            <i class="fas fa-info-circle"></i> Деталі
+          </a>
+          {% if user.profile.role == 'volunteer' %}
+          <a href="{% url 'apply_project' project.id %}" class="btn-apply">
+            <i class="fas fa-check"></i> Подати заявку
+          </a>
+          {% endif %}
+          {% else %}
+          <a href="{% url 'login' %}" class="btn-apply" style="width: 100%;">
+            <i class="fas fa-sign-in-alt"></i> Увійдіть для заявки
+          </a>
+          {% endif %}
+        </div>
+      </div>
+      {% empty %}
+      <div style="grid-column: 1 / -1; text-align: center; padding: 60px; color: var(--text-secondary);">
+        <i class="fas fa-calendar-times" style="font-size: 64px; margin-bottom: 20px; display: block;"></i>
+        <p style="font-size: 18px;">Наразі немає доступних волонтерських робіт</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <script>
+    function filterEvents() {
+      const search = document.getElementById('search-input').value.toLowerCase();
+      const status = document.getElementById('status-filter').value;
+      const hours = document.getElementById('hours-filter').value;
+
+      document.querySelectorAll('.event-card').forEach(card => {
+        const name = card.dataset.name;
+        const cardHours = parseInt(card.dataset.hours);
+        const cardStatus = card.dataset.status;
+
+        let show = true;
+
+        if (search && !name.includes(search)) show = false;
+
+        if (status !== 'all') {
+          if (status === 'active' && cardStatus !== 'approved') show = false;
+          if (status === 'completed' && cardStatus !== 'completed') show = false;
+        }
+
+        if (hours !== 'all') {
+          if (hours === '1-4' && (cardHours < 1 || cardHours > 4)) show = false;
+          if (hours === '5-8' && (cardHours < 5 || cardHours > 8)) show = false;
+          if (hours === '9+' && cardHours < 9) show = false;
+        }
+
+        card.style.display = show ? '' : 'none';
+      });
+    }
+
+  </script>
+</body>
+
+</html>
