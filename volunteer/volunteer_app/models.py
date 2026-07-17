@@ -158,8 +158,12 @@ class Organization(models.Model):
     name = models.CharField(max_length=255, verbose_name="Назва організації")
     slug = models.SlugField(max_length=100, unique=True)
     description = models.TextField(blank=True, verbose_name="Опис")
-    site_name = models.CharField(max_length=100, default="BoscoVolunteer", verbose_name="Назва сайту")
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="owned_organizations")
+    site_name = models.CharField(
+        max_length=100, default="BoscoVolunteer", verbose_name="Назва сайту"
+    )
+    owner = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="owned_organizations"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -199,8 +203,12 @@ class Project(models.Model):
         max_digits=8, decimal_places=2, default=0, verbose_name="Вартість участі ($)"
     )
     organization = models.ForeignKey(
-        Organization, null=True, blank=True, on_delete=models.SET_NULL,
-        related_name="projects", verbose_name="Організація"
+        Organization,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="projects",
+        verbose_name="Організація",
     )
 
     def __str__(self):
@@ -248,7 +256,9 @@ class Request(models.Model):
 
 
 class VolunteerReview(models.Model):
-    volunteer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="reviews_given")
+    volunteer = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="reviews_given"
+    )
     event = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="reviews")
     rating = models.PositiveIntegerField(
         choices=[(i, f"{i} ★") for i in range(1, 6)], verbose_name="Оцінка"
@@ -271,7 +281,9 @@ class UserSubscription(models.Model):
         ("analytics", "Розширена аналітика ($10)"),
         ("premium", "Преміум акаунт ($20)"),
     ]
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="subscriptions")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="subscriptions"
+    )
     plan_type = models.CharField(max_length=20, choices=PLAN_CHOICES)
     purchased_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
@@ -286,8 +298,12 @@ class UserSubscription(models.Model):
 
 
 class PrioritySpot(models.Model):
-    volunteer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="priority_spots")
-    event = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="priority_spots")
+    volunteer = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="priority_spots"
+    )
+    event = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name="priority_spots"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -300,6 +316,7 @@ class PrioritySpot(models.Model):
 
 
 # ─── Telegram integration ─────────────────────────────────────────────────────
+
 
 class TelegramUser(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="telegram")
@@ -365,11 +382,10 @@ def _tg_notify_admins(message):
     """Queue notification for every linked admin / superuser."""
     try:
         admin_chat_ids = (
-            TelegramUser.objects
-            .filter(is_active=True)
+            TelegramUser.objects.filter(is_active=True)
             .filter(
-                models.Q(user__is_superuser=True) |
-                models.Q(user__profile__role="admin")
+                models.Q(user__is_superuser=True)
+                | models.Q(user__profile__role="admin")
             )
             .values_list("chat_id", flat=True)
         )
@@ -415,8 +431,10 @@ def _notify_on_request_change(sender, instance, created, **kwargs):
     # Approved → volunteer
     if instance.status == "approved" and old_status != "approved":
         try:
-            _tg_notify(volunteer.telegram.chat_id,
-                       f"✅ Вашу заявку на «{event_name}» *схвалено*!")
+            _tg_notify(
+                volunteer.telegram.chat_id,
+                f"✅ Вашу заявку на «{event_name}» *схвалено*!",
+            )
         except Exception:
             pass
 
@@ -424,16 +442,20 @@ def _notify_on_request_change(sender, instance, created, **kwargs):
     if instance.status == "completed" and old_status != "completed":
         try:
             hours = instance.approved_hours or instance.event.hours
-            _tg_notify(volunteer.telegram.chat_id,
-                       f"🎉 Вам зараховано *{hours} год* за «{event_name}»!")
+            _tg_notify(
+                volunteer.telegram.chat_id,
+                f"🎉 Вам зараховано *{hours} год* за «{event_name}»!",
+            )
         except Exception:
             pass
 
     # Rejected → volunteer
     if instance.status == "rejected" and old_status != "rejected":
         try:
-            _tg_notify(volunteer.telegram.chat_id,
-                       f"❌ Вашу заявку на «{event_name}» відхилено.")
+            _tg_notify(
+                volunteer.telegram.chat_id,
+                f"❌ Вашу заявку на «{event_name}» відхилено.",
+            )
         except Exception:
             pass
 
@@ -459,11 +481,9 @@ def _notify_on_new_project(sender, instance, created, **kwargs):
             f"*{instance.name}*\n"
             f"📅 {date_str}  ⏰ {instance.hours} год"
         )
-        chat_ids = (
-            TelegramUser.objects
-            .filter(is_active=True, user__profile__role="volunteer")
-            .values_list("chat_id", flat=True)
-        )
+        chat_ids = TelegramUser.objects.filter(
+            is_active=True, user__profile__role="volunteer"
+        ).values_list("chat_id", flat=True)
         for cid in chat_ids:
             _tg_notify(cid, msg)
     except Exception:

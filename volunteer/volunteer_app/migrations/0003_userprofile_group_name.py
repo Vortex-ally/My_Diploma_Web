@@ -4,15 +4,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('volunteer_app', '0002_alter_userprofile_role'),
+        ("volunteer_app", "0002_alter_userprofile_role"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='userprofile',
-            name='group_name',
-            field=models.CharField(blank=True, max_length=50, null=True, verbose_name='Група (наприклад, IT-21)'),
+            model_name="userprofile",
+            name="group_name",
+            field=models.CharField(
+                blank=True,
+                max_length=50,
+                null=True,
+                verbose_name="Група (наприклад, IT-21)",
+            ),
         ),
     ]

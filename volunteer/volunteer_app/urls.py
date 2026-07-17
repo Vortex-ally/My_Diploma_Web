@@ -1,6 +1,4 @@
-from django.contrib import admin
-from django.contrib.auth.views import LogoutView
-from django.urls import include, path
+from django.urls import path
 
 from . import views
 
@@ -22,12 +20,18 @@ urlpatterns = [
     path("api/users/", views.api_users, name="api_users"),
     path("api/profile/", views.api_profile, name="api_profile"),
     path("api/profile/update/", views.api_profile_update, name="api_profile_update"),
-    path("api/profile/password/", views.api_password_change, name="api_password_change"),
+    path(
+        "api/profile/password/", views.api_password_change, name="api_password_change"
+    ),
     path("api/goal/", views.api_goal, name="api_goal"),
     path("api/leaderboard/", views.api_leaderboard, name="api_leaderboard"),
     path("api/review/", views.api_review, name="api_review"),
     path("api/chat/users/", views.api_chat_users, name="api_chat_users"),
-    path("api/chat/<str:username>/messages/", views.api_chat_messages, name="api_chat_messages"),
+    path(
+        "api/chat/<str:username>/messages/",
+        views.api_chat_messages,
+        name="api_chat_messages",
+    ),
     path("api/chat/send/", views.api_chat_send, name="api_chat_send"),
     path("api/purchase/", views.api_purchase, name="api_purchase"),
     path("api/subscriptions/", views.api_subscriptions, name="api_subscriptions"),
@@ -79,6 +83,12 @@ urlpatterns = [
     path("analytics/", views.analytics_dashboard, name="analytics"),
     path("review/<int:request_id>/", views.leave_review, name="leave_review"),
     path("organizations/", views.organization_list, name="organization_list"),
-    path("organizations/create/", views.create_organization, name="create_organization"),
-    path("organizations/<slug:org_slug>/", views.organization_detail, name="organization_detail"),
+    path(
+        "organizations/create/", views.create_organization, name="create_organization"
+    ),
+    path(
+        "organizations/<slug:org_slug>/",
+        views.organization_detail,
+        name="organization_detail",
+    ),
 ]

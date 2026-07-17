@@ -6,40 +6,65 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('volunteer_app', '0015_project_price_organization_project_organization_and_more'),
+        (
+            "volunteer_app",
+            "0015_project_price_organization_project_organization_and_more",
+        ),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='TelegramNotification',
+            name="TelegramNotification",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('chat_id', models.BigIntegerField(db_index=True)),
-                ('message', models.TextField()),
-                ('is_sent', models.BooleanField(db_index=True, default=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("chat_id", models.BigIntegerField(db_index=True)),
+                ("message", models.TextField()),
+                ("is_sent", models.BooleanField(db_index=True, default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'TG-сповіщення',
-                'verbose_name_plural': 'TG-сповіщення',
-                'ordering': ['created_at'],
+                "verbose_name": "TG-сповіщення",
+                "verbose_name_plural": "TG-сповіщення",
+                "ordering": ["created_at"],
             },
         ),
         migrations.CreateModel(
-            name='TelegramUser',
+            name="TelegramUser",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('chat_id', models.BigIntegerField(unique=True)),
-                ('is_active', models.BooleanField(default=True)),
-                ('linked_at', models.DateTimeField(auto_now_add=True)),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='telegram', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("chat_id", models.BigIntegerField(unique=True)),
+                ("is_active", models.BooleanField(default=True)),
+                ("linked_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "user",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="telegram",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Telegram-акаунт',
-                'verbose_name_plural': 'Telegram-акаунти',
+                "verbose_name": "Telegram-акаунт",
+                "verbose_name_plural": "Telegram-акаунти",
             },
         ),
     ]

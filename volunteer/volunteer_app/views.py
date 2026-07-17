@@ -27,7 +27,6 @@ from .models import (
     Organization,
     PrioritySpot,
     Project,
-    Rating,
     Request,
     UserAuthToken,
     UserProfile,
@@ -71,7 +70,9 @@ def _calculate_volunteer_hours(user):
     for r in Request.objects.filter(
         Volunteer=user, status__in=["approved", "completed"]
     ).select_related("event"):
-        total += r.approved_hours if r.approved_hours is not None else (r.event.hours or 0)
+        total += (
+            r.approved_hours if r.approved_hours is not None else (r.event.hours or 0)
+        )
     return total
 
 
@@ -123,7 +124,9 @@ def _build_premium_stats():
         "premium_sub_count": premium_count,
         "analytics_sub_count": analytics_count,
         "priority_spot_count": priority_count,
-        "total_revenue": premium_count * 20 + analytics_only_count * 10 + priority_count,
+        "total_revenue": premium_count * 20
+        + analytics_only_count * 10
+        + priority_count,
         "org_count": Organization.objects.count(),
         "review_count": VolunteerReview.objects.count(),
     }
@@ -155,8 +158,9 @@ def _volunteer_dashboard_ctx(user):
         "ratings": _build_ratings_context(),
         "has_premium": has_premium,
         "premium_user_ids": list(
-            UserSubscription.objects.filter(plan_type="premium", is_active=True)
-            .values_list("user_id", flat=True)
+            UserSubscription.objects.filter(
+                plan_type="premium", is_active=True
+            ).values_list("user_id", flat=True)
         ),
         "completed_requests": Request.objects.filter(
             Volunteer=user, status="completed"
@@ -298,7 +302,7 @@ def get_user_from_token(request):
     auth_header = request.META.get("HTTP_AUTHORIZATION", "")
     if not auth_header.startswith("Token "):
         return None
-    token = auth_header[len("Token "):].strip()
+    token = auth_header[len("Token ") :].strip()
     try:
         return UserAuthToken.objects.select_related("user").get(key=token).user
     except UserAuthToken.DoesNotExist:
@@ -363,7 +367,9 @@ def api_login(request):
             ).first()
 
             if user_obj:
-                user = authenticate(request, username=user_obj.username, password=password)
+                user = authenticate(
+                    request, username=user_obj.username, password=password
+                )
 
                 if user is not None:
                     profile = getattr(user, "profile", None)
@@ -599,9 +605,11 @@ def api_users(request):
                     "id": u.id,
                     "name": u.first_name or u.username,
                     "email": u.email,
-                    "role": getattr(u, "profile", None).role
-                    if hasattr(u, "profile")
-                    else "user",
+                    "role": (
+                        getattr(u, "profile", None).role
+                        if hasattr(u, "profile")
+                        else "user"
+                    ),
                     "is_active": u.is_active,
                 }
                 for u in users
@@ -650,9 +658,9 @@ def api_profile(request):
                 "name": user.first_name or user.username,
                 "role": profile.role if profile else "user",
                 "group_name": profile.group_name if profile else None,
-                "date_joined": user.date_joined.isoformat()
-                if user.date_joined
-                else None,
+                "date_joined": (
+                    user.date_joined.isoformat() if user.date_joined else None
+                ),
             },
             "stats": {
                 "total_events": total_events,
@@ -748,7 +756,7 @@ def api_goal(request):
         default_target = 10 if course == 1 else 20
         try:
             target = int(data.get("target_hours") or default_target)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             target = default_target
         target = max(1, target)
         goal, _ = VolunteerGoal.objects.get_or_create(
@@ -822,7 +830,7 @@ def api_review(request):
     comment = (data.get("comment") or "").strip()
     try:
         rating = int(rating)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return JsonResponse({"message": "Вкажіть оцінку від 1 до 5"}, status=400)
     if rating < 1 or rating > 5:
         return JsonResponse({"message": "Оцінка має бути від 1 до 5"}, status=400)
@@ -1100,7 +1108,9 @@ def login_view(request):
             ).first()
 
             if user_obj:
-                user = authenticate(request, username=user_obj.username, password=password)
+                user = authenticate(
+                    request, username=user_obj.username, password=password
+                )
 
                 if user is not None:
                     login(request, user)
@@ -1237,11 +1247,13 @@ def manage_request(request, request_id, action):
         if hours:
             try:
                 req.approved_hours = int(hours)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 req.approved_hours = req.event.hours
         else:
             req.approved_hours = req.event.hours
-        msg = f"Волонтеру {req.Volunteer.username} зараховано {req.approved_hours} годин"
+        msg = (
+            f"Волонтеру {req.Volunteer.username} зараховано {req.approved_hours} годин"
+        )
         if not is_ajax:
             messages.success(request, msg)
 
@@ -1257,7 +1269,9 @@ def manage_request(request, request_id, action):
         )
 
     if is_ajax:
-        return JsonResponse({"ok": True, "message": msg, "approved_hours": req.approved_hours})
+        return JsonResponse(
+            {"ok": True, "message": msg, "approved_hours": req.approved_hours}
+        )
     return redirect("dashboard")
 
 
@@ -1331,7 +1345,9 @@ def create_project(request):
 def project_detail(request, project_id):
     project = get_object_or_404(Project, id=project_id)
     user = request.user
-    is_admin = user.is_superuser or (hasattr(user, "profile") and user.profile.role == "admin")
+    is_admin = user.is_superuser or (
+        hasattr(user, "profile") and user.profile.role == "admin"
+    )
     is_organiser = hasattr(user, "profile") and user.profile.role == "organiser"
     is_owner = user == project.organiser
 
@@ -1339,8 +1355,16 @@ def project_detail(request, project_id):
         messages.error(request, "У вас немає доступу до цієї сторінки")
         return redirect("dashboard")
 
-    requests_qs = Request.objects.filter(event=project).select_related("Volunteer__profile").order_by("-date_requested")
-    reviews = VolunteerReview.objects.filter(event=project).select_related("volunteer").order_by("-created_at")
+    requests_qs = (
+        Request.objects.filter(event=project)
+        .select_related("Volunteer__profile")
+        .order_by("-date_requested")
+    )
+    reviews = (
+        VolunteerReview.objects.filter(event=project)
+        .select_related("volunteer")
+        .order_by("-created_at")
+    )
 
     stats = {
         "total": requests_qs.count(),
@@ -1352,14 +1376,18 @@ def project_detail(request, project_id):
 
     can_delete = is_admin or is_owner
 
-    return render(request, "volunteer_app/project_detail.html", {
-        "project": project,
-        "requests_qs": requests_qs,
-        "reviews": reviews,
-        "stats": stats,
-        "can_delete": can_delete,
-        "is_admin": is_admin,
-    })
+    return render(
+        request,
+        "volunteer_app/project_detail.html",
+        {
+            "project": project,
+            "requests_qs": requests_qs,
+            "reviews": reviews,
+            "stats": stats,
+            "can_delete": can_delete,
+            "is_admin": is_admin,
+        },
+    )
 
 
 @login_required
@@ -1428,9 +1456,9 @@ def view_user_profile(request, username):
             Volunteer=viewed_user, status="completed"
         ).count()
         context["total_hours"] = (
-            Request.objects.filter(
-                Volunteer=viewed_user, status="completed"
-            ).aggregate(total=Sum("approved_hours"))["total"]
+            Request.objects.filter(Volunteer=viewed_user, status="completed").aggregate(
+                total=Sum("approved_hours")
+            )["total"]
             or 0
         )
         context["user_requests"] = Request.objects.filter(
@@ -1855,7 +1883,9 @@ def create_template(request):
         hours = request.POST.get("hours")
         description = request.POST.get("description", "")
         if name and hours:
-            HoursTemplate.objects.create(name=name, hours=hours, description=description)
+            HoursTemplate.objects.create(
+                name=name, hours=hours, description=description
+            )
             messages.success(request, f"Шаблон годин {name} додано")
 
     return redirect("templates")
@@ -2171,7 +2201,9 @@ def analytics_dashboard(request):
     labels = [s["project"].name[:20] for s in project_stats]
     approved_data = [s["approved"] for s in project_stats]
     completed_data = [s["completed"] for s in project_stats]
-    ratings_data = [float(s["avg_rating"]) if s["avg_rating"] else 0 for s in project_stats]
+    ratings_data = [
+        float(s["avg_rating"]) if s["avg_rating"] else 0 for s in project_stats
+    ]
 
     # Rating distribution: 1 query instead of 5
     rating_dist_qs = (

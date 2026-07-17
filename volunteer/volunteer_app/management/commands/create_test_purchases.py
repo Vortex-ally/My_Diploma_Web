@@ -1,14 +1,21 @@
-from django.core.management.base import BaseCommand
-from django.contrib.auth.models import User
-from volunteer_app.models import (
-    UserSubscription, PrioritySpot, VolunteerReview,
-    Organization, Project, Request,
-)
 import random
+
+from django.contrib.auth.models import User
+from django.core.management.base import BaseCommand
+from volunteer_app.models import (
+    Organization,
+    PrioritySpot,
+    Project,
+    Request,
+    UserSubscription,
+    VolunteerReview,
+)
 
 
 class Command(BaseCommand):
-    help = "Create test purchases: subscriptions, priority spots, reviews, organizations"
+    help = (
+        "Create test purchases: subscriptions, priority spots, reviews, organizations"
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -28,12 +35,24 @@ class Command(BaseCommand):
         # ── Organizations ─────────────────────────────────────────────────────
         self.stdout.write("Створення організацій...")
         orgs_data = [
-            {"name": "Bosco Youth", "slug": "bosco-youth",
-             "site_name": "BoscoVolunteer", "description": "Молодіжна спільнота Боско"},
-            {"name": "Green Campus", "slug": "green-campus",
-             "site_name": "GreenCampus", "description": "Еко-волонтерство університету"},
-            {"name": "IT Helpers", "slug": "it-helpers",
-             "site_name": "ITHelpers", "description": "Технічна підтримка для НКО"},
+            {
+                "name": "Bosco Youth",
+                "slug": "bosco-youth",
+                "site_name": "BoscoVolunteer",
+                "description": "Молодіжна спільнота Боско",
+            },
+            {
+                "name": "Green Campus",
+                "slug": "green-campus",
+                "site_name": "GreenCampus",
+                "description": "Еко-волонтерство університету",
+            },
+            {
+                "name": "IT Helpers",
+                "slug": "it-helpers",
+                "site_name": "ITHelpers",
+                "description": "Технічна підтримка для НКО",
+            },
         ]
         owner = User.objects.filter(is_superuser=True).first() or User.objects.first()
         created_orgs = []
@@ -44,17 +63,18 @@ class Command(BaseCommand):
             )
             created_orgs.append(org)
             self.stdout.write(
-                self.style.SUCCESS(f"  {'Створено' if created else 'Вже є'}: {org.name}")
+                self.style.SUCCESS(
+                    f"  {'Створено' if created else 'Вже є'}: {org.name}"
+                )
             )
 
         # ── Analytics subscriptions (organisers) ──────────────────────────────
         self.stdout.write("Підписки на аналітику (організатори)...")
-        organisers = list(
-            User.objects.filter(profile__role="organiser")[:3]
-        )
+        organisers = list(User.objects.filter(profile__role="organiser")[:3])
         for u in organisers:
             sub, created = UserSubscription.objects.get_or_create(
-                user=u, plan_type="analytics",
+                user=u,
+                plan_type="analytics",
                 defaults={"is_active": True},
             )
             self.stdout.write(
@@ -66,11 +86,14 @@ class Command(BaseCommand):
         # ── Premium subscriptions (mixed roles) ───────────────────────────────
         self.stdout.write("Преміум підписки...")
         premium_users = list(
-            User.objects.filter(profile__role__in=["volunteer", "organiser", "admin"])[:4]
+            User.objects.filter(profile__role__in=["volunteer", "organiser", "admin"])[
+                :4
+            ]
         )
         for u in premium_users:
             sub, created = UserSubscription.objects.get_or_create(
-                user=u, plan_type="premium",
+                user=u,
+                plan_type="premium",
                 defaults={"is_active": True},
             )
             self.stdout.write(
@@ -95,7 +118,8 @@ class Command(BaseCommand):
                 )
                 if created:
                     Request.objects.get_or_create(
-                        Volunteer=v, event=project,
+                        Volunteer=v,
+                        event=project,
                         defaults={"status": "pending"},
                     )
                     spots_created += 1
@@ -154,7 +178,11 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("=" * 50))
         self.stdout.write(self.style.SUCCESS("Підсумок:"))
         self.stdout.write(f"  Організацій:        {Organization.objects.count()}")
-        self.stdout.write(f"  Підписок analytics: {UserSubscription.objects.filter(plan_type='analytics').count()}")
-        self.stdout.write(f"  Підписок premium:   {UserSubscription.objects.filter(plan_type='premium').count()}")
+        self.stdout.write(
+            f"  Підписок analytics: {UserSubscription.objects.filter(plan_type='analytics').count()}"
+        )
+        self.stdout.write(
+            f"  Підписок premium:   {UserSubscription.objects.filter(plan_type='premium').count()}"
+        )
         self.stdout.write(f"  Пріоритетних місць: {PrioritySpot.objects.count()}")
         self.stdout.write(f"  Відгуків:           {VolunteerReview.objects.count()}")

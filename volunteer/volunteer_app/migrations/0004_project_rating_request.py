@@ -6,39 +6,102 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('volunteer_app', '0003_userprofile_group_name'),
+        ("volunteer_app", "0003_userprofile_group_name"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Project',
+            name="Project",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255)),
-                ('date', models.DateTimeField()),
-                ('hours', models.PositiveIntegerField()),
-                ('status', models.CharField(choices=[('apply', 'Подати заявку'), ('approved', 'Схвалено'), ('pending', 'Заявку подано'), ('rejected', 'Заявку відхилено')], default='apply', max_length=20)),
-                ('organiser', models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, related_name='organised_projects', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                ("date", models.DateTimeField()),
+                ("hours", models.PositiveIntegerField()),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("apply", "Подати заявку"),
+                            ("approved", "Схвалено"),
+                            ("pending", "Заявку подано"),
+                            ("rejected", "Заявку відхилено"),
+                        ],
+                        default="apply",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "organiser",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.DO_NOTHING,
+                        related_name="organised_projects",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Rating',
+            name="Rating",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('rating', models.PositiveIntegerField()),
-                ('name', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='ratings', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("rating", models.PositiveIntegerField()),
+                (
+                    "name",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="ratings",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Request',
+            name="Request",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date_requested', models.DateTimeField(auto_now_add=True)),
-                ('Volunteer', models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, related_name='requests', to=settings.AUTH_USER_MODEL)),
-                ('event', models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, related_name='requests', to='volunteer_app.project')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date_requested", models.DateTimeField(auto_now_add=True)),
+                (
+                    "Volunteer",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.DO_NOTHING,
+                        related_name="requests",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "event",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.DO_NOTHING,
+                        related_name="requests",
+                        to="volunteer_app.project",
+                    ),
+                ),
             ],
         ),
     ]

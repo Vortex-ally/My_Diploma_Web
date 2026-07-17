@@ -2,7 +2,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("volunteer_app", "0016_telegram_notifications"),
     ]

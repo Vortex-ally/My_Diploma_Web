@@ -120,7 +120,15 @@ admin.site.register(User, CustomUserAdmin)
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ("name", "organiser", "date", "hours", "max_volunteers", "status", "organization")
+    list_display = (
+        "name",
+        "organiser",
+        "date",
+        "hours",
+        "max_volunteers",
+        "status",
+        "organization",
+    )
     list_filter = ("status", "organization")
     search_fields = ("name", "organiser__username")
     autocomplete_fields = ("organiser", "organization")

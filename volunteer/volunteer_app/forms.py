@@ -7,7 +7,16 @@ from .models import Organization, Project, VolunteerReview
 class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
-        fields = ["name", "date", "hours", "max_volunteers", "description", "location", "price", "organization"]
+        fields = [
+            "name",
+            "date",
+            "hours",
+            "max_volunteers",
+            "description",
+            "location",
+            "price",
+            "organization",
+        ]
         widgets = {
             "date": forms.DateTimeInput(attrs={"type": "datetime-local"}),
             "description": forms.Textarea(attrs={"rows": 3}),
@@ -38,7 +47,9 @@ class VolunteerReviewForm(forms.ModelForm):
         fields = ["rating", "comment"]
         widgets = {
             "rating": forms.RadioSelect(choices=[(i, f"{i} ★") for i in range(1, 6)]),
-            "comment": forms.Textarea(attrs={"rows": 3, "placeholder": "Ваш відгук про захід..."}),
+            "comment": forms.Textarea(
+                attrs={"rows": 3, "placeholder": "Ваш відгук про захід..."}
+            ),
         }
 
 
@@ -68,7 +79,9 @@ class OrganizationForm(forms.ModelForm):
 class PaymentForm(forms.Form):
     card_number = forms.CharField(
         max_length=19,
-        widget=forms.TextInput(attrs={"placeholder": "1234 5678 9012 3456", "maxlength": "19"}),
+        widget=forms.TextInput(
+            attrs={"placeholder": "1234 5678 9012 3456", "maxlength": "19"}
+        ),
         label="Номер картки",
     )
     cardholder = forms.CharField(

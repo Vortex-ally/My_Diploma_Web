@@ -4,15 +4,16 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('volunteer_app', '0010_request_organizer_report_request_organizer_reported'),
+        ("volunteer_app", "0010_request_organizer_report_request_organizer_reported"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='request',
-            name='approved_hours',
-            field=models.PositiveIntegerField(blank=True, null=True, verbose_name='Зараховані години'),
+            model_name="request",
+            name="approved_hours",
+            field=models.PositiveIntegerField(
+                blank=True, null=True, verbose_name="Зараховані години"
+            ),
         ),
     ]

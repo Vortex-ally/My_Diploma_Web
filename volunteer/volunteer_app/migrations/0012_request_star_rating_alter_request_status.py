@@ -4,20 +4,30 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('volunteer_app', '0011_request_approved_hours'),
+        ("volunteer_app", "0011_request_approved_hours"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='request',
-            name='star_rating',
-            field=models.BooleanField(default=False, verbose_name='Зірочка за гарну роботу'),
+            model_name="request",
+            name="star_rating",
+            field=models.BooleanField(
+                default=False, verbose_name="Зірочка за гарну роботу"
+            ),
         ),
         migrations.AlterField(
-            model_name='request',
-            name='status',
-            field=models.CharField(choices=[('pending', 'В очікуванні'), ('approved', 'Схвалено'), ('completed', 'Відпрацьовано'), ('rejected', 'Відхилено')], default='pending', max_length=20),
+            model_name="request",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("pending", "В очікуванні"),
+                    ("approved", "Схвалено"),
+                    ("completed", "Відпрацьовано"),
+                    ("rejected", "Відхилено"),
+                ],
+                default="pending",
+                max_length=20,
+            ),
         ),
     ]

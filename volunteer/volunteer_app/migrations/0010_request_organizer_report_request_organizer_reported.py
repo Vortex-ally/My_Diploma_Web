@@ -4,20 +4,23 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('volunteer_app', '0009_project_current_volunteers'),
+        ("volunteer_app", "0009_project_current_volunteers"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='request',
-            name='organizer_report',
-            field=models.TextField(blank=True, null=True, verbose_name='Скарга організатора'),
+            model_name="request",
+            name="organizer_report",
+            field=models.TextField(
+                blank=True, null=True, verbose_name="Скарга організатора"
+            ),
         ),
         migrations.AddField(
-            model_name='request',
-            name='organizer_reported',
-            field=models.BooleanField(default=False, verbose_name='Поскаржено організатором'),
+            model_name="request",
+            name="organizer_reported",
+            field=models.BooleanField(
+                default=False, verbose_name="Поскаржено організатором"
+            ),
         ),
     ]

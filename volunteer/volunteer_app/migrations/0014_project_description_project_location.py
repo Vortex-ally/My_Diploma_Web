@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("volunteer_app", "0013_eventtemplate_grouptemplate_hourstemplate_and_more"),
     ]
@@ -29,7 +28,10 @@ class Migration(migrations.Migration):
                     model_name="project",
                     name="location",
                     field=models.CharField(
-                        blank=True, default="", max_length=255, verbose_name="Місце проведення"
+                        blank=True,
+                        default="",
+                        max_length=255,
+                        verbose_name="Місце проведення",
                     ),
                 ),
             ],

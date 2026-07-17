@@ -6,114 +6,243 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('volunteer_app', '0012_request_star_rating_alter_request_status'),
+        ("volunteer_app", "0012_request_star_rating_alter_request_status"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='EventTemplate',
+            name="EventTemplate",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255, verbose_name='Назва шаблону')),
-                ('location', models.CharField(max_length=255, verbose_name='Місце проведення')),
-                ('description', models.TextField(blank=True, verbose_name='Опис')),
-                ('default_hours', models.PositiveIntegerField(verbose_name='Години за замовчуванням')),
-                ('icon', models.CharField(default='fas fa-calendar-check', max_length=50, verbose_name='Іконка')),
-                ('color', models.CharField(default='#e0e7ff', max_length=20, verbose_name='Колір')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(max_length=255, verbose_name="Назва шаблону"),
+                ),
+                (
+                    "location",
+                    models.CharField(max_length=255, verbose_name="Місце проведення"),
+                ),
+                ("description", models.TextField(blank=True, verbose_name="Опис")),
+                (
+                    "default_hours",
+                    models.PositiveIntegerField(verbose_name="Години за замовчуванням"),
+                ),
+                (
+                    "icon",
+                    models.CharField(
+                        default="fas fa-calendar-check",
+                        max_length=50,
+                        verbose_name="Іконка",
+                    ),
+                ),
+                (
+                    "color",
+                    models.CharField(
+                        default="#e0e7ff", max_length=20, verbose_name="Колір"
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Шаблон заходу',
-                'verbose_name_plural': 'Шаблони заходів',
+                "verbose_name": "Шаблон заходу",
+                "verbose_name_plural": "Шаблони заходів",
             },
         ),
         migrations.CreateModel(
-            name='GroupTemplate',
+            name="GroupTemplate",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=50, unique=True, verbose_name='Назва групи')),
-                ('course', models.PositiveIntegerField(verbose_name='Курс')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        max_length=50, unique=True, verbose_name="Назва групи"
+                    ),
+                ),
+                ("course", models.PositiveIntegerField(verbose_name="Курс")),
             ],
             options={
-                'ordering': ['course', 'name'],
+                "ordering": ["course", "name"],
             },
         ),
         migrations.CreateModel(
-            name='HoursTemplate',
+            name="HoursTemplate",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100, verbose_name='Назва')),
-                ('hours', models.PositiveIntegerField(verbose_name='Години')),
-                ('description', models.CharField(blank=True, max_length=255, verbose_name='Опис')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=100, verbose_name="Назва")),
+                ("hours", models.PositiveIntegerField(verbose_name="Години")),
+                (
+                    "description",
+                    models.CharField(blank=True, max_length=255, verbose_name="Опис"),
+                ),
             ],
             options={
-                'verbose_name': 'Шаблон годин',
-                'verbose_name_plural': 'Шаблони годин',
-                'ordering': ['hours'],
+                "verbose_name": "Шаблон годин",
+                "verbose_name_plural": "Шаблони годин",
+                "ordering": ["hours"],
             },
         ),
         migrations.CreateModel(
-            name='WorkTypeTemplate',
+            name="WorkTypeTemplate",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255, verbose_name='Тип роботи')),
-                ('description', models.TextField(blank=True, verbose_name='Опис')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255, verbose_name="Тип роботи")),
+                ("description", models.TextField(blank=True, verbose_name="Опис")),
             ],
             options={
-                'verbose_name': 'Шаблон типу роботи',
-                'verbose_name_plural': 'Шаблони типів робіт',
+                "verbose_name": "Шаблон типу роботи",
+                "verbose_name_plural": "Шаблони типів робіт",
             },
         ),
         migrations.CreateModel(
-            name='ArchiveRequest',
+            name="ArchiveRequest",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date_requested', models.DateTimeField()),
-                ('date_completed', models.DateTimeField(blank=True, null=True)),
-                ('status', models.CharField(max_length=20)),
-                ('approved_hours', models.PositiveIntegerField(blank=True, null=True)),
-                ('organizer_report', models.TextField(blank=True, null=True)),
-                ('star_rating', models.BooleanField(default=False)),
-                ('archived_at', models.DateTimeField(auto_now_add=True)),
-                ('event', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='volunteer_app.project')),
-                ('volunteer', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='archived_requests', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date_requested", models.DateTimeField()),
+                ("date_completed", models.DateTimeField(blank=True, null=True)),
+                ("status", models.CharField(max_length=20)),
+                ("approved_hours", models.PositiveIntegerField(blank=True, null=True)),
+                ("organizer_report", models.TextField(blank=True, null=True)),
+                ("star_rating", models.BooleanField(default=False)),
+                ("archived_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "event",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="volunteer_app.project",
+                    ),
+                ),
+                (
+                    "volunteer",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="archived_requests",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Архівна заявка',
-                'verbose_name_plural': 'Архів заявок',
-                'ordering': ['-archived_at'],
+                "verbose_name": "Архівна заявка",
+                "verbose_name_plural": "Архів заявок",
+                "ordering": ["-archived_at"],
             },
         ),
         migrations.CreateModel(
-            name='Message',
+            name="Message",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('content', models.TextField()),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('is_read', models.BooleanField(default=False)),
-                ('recipient', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='received_messages', to=settings.AUTH_USER_MODEL)),
-                ('sender', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='sent_messages', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("content", models.TextField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("is_read", models.BooleanField(default=False)),
+                (
+                    "recipient",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="received_messages",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "sender",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="sent_messages",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Повідомлення',
-                'verbose_name_plural': 'Повідомлення',
-                'ordering': ['-created_at'],
+                "verbose_name": "Повідомлення",
+                "verbose_name_plural": "Повідомлення",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='VolunteerGoal',
+            name="VolunteerGoal",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('target_hours', models.PositiveIntegerField(verbose_name='Цільова кількість годин')),
-                ('current_hours', models.PositiveIntegerField(default=0, verbose_name='Поточні години')),
-                ('completed', models.BooleanField(default=False, verbose_name='Ціль досягнута')),
-                ('volunteer', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='volunteer_goal', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "target_hours",
+                    models.PositiveIntegerField(verbose_name="Цільова кількість годин"),
+                ),
+                (
+                    "current_hours",
+                    models.PositiveIntegerField(
+                        default=0, verbose_name="Поточні години"
+                    ),
+                ),
+                (
+                    "completed",
+                    models.BooleanField(default=False, verbose_name="Ціль досягнута"),
+                ),
+                (
+                    "volunteer",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="volunteer_goal",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Ціль волонтера',
-                'verbose_name_plural': 'Цілі волонтерів',
+                "verbose_name": "Ціль волонтера",
+                "verbose_name_plural": "Цілі волонтерів",
             },
         ),
     ]

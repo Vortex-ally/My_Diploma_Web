@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("volunteer_app", "0017_fix_userprofile_unique"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

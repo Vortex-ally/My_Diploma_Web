@@ -4,15 +4,22 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('volunteer_app', '0004_project_rating_request'),
+        ("volunteer_app", "0004_project_rating_request"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='request',
-            name='status',
-            field=models.CharField(choices=[('pending', 'В очікуванні'), ('approved', 'Схвалено'), ('rejected', 'Відхилено')], default='pending', max_length=20),
+            model_name="request",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("pending", "В очікуванні"),
+                    ("approved", "Схвалено"),
+                    ("rejected", "Відхилено"),
+                ],
+                default="pending",
+                max_length=20,
+            ),
         ),
     ]

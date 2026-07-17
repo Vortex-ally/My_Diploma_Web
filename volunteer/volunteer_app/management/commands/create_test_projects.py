@@ -1,8 +1,9 @@
-from django.core.management.base import BaseCommand
-from django.contrib.auth.models import User
-from volunteer_app.models import Project, Request
 import random
 from datetime import datetime, timedelta
+
+from django.contrib.auth.models import User
+from django.core.management.base import BaseCommand
+from volunteer_app.models import Project, Request
 
 
 class Command(BaseCommand):
@@ -160,13 +161,15 @@ class Command(BaseCommand):
 
                     for vol in assigned_volunteers:
                         status = random.choice(statuses_list)
-                        request = Request.objects.create(
+                        Request.objects.create(
                             Volunteer=vol,
                             event=project,
                             status=status,
-                            approved_hours=project.hours
-                            if status in ["approved", "completed"]
-                            else None,
+                            approved_hours=(
+                                project.hours
+                                if status in ["approved", "completed"]
+                                else None
+                            ),
                         )
                         if status == "approved":
                             project.current_volunteers += 1

@@ -1,8 +1,6 @@
-from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
-from volunteer_app.models import UserProfile, Project, Request
-import random
-from datetime import datetime, timedelta
+from django.core.management.base import BaseCommand
+from volunteer_app.models import UserProfile
 
 
 class Command(BaseCommand):
@@ -55,7 +53,7 @@ class Command(BaseCommand):
                         username=username,
                         defaults={
                             "email": email,
-                            "first_name": f"Volunteer",
+                            "first_name": "Volunteer",
                             "last_name": f"Test{i}",
                         },
                     )
@@ -90,7 +88,7 @@ class Command(BaseCommand):
                         username=username,
                         defaults={
                             "email": email,
-                            "first_name": f"Organiser",
+                            "first_name": "Organiser",
                             "last_name": f"Test{i}",
                         },
                     )
@@ -120,7 +118,7 @@ class Command(BaseCommand):
                         username=username,
                         defaults={
                             "email": email,
-                            "first_name": f"Admin",
+                            "first_name": "Admin",
                             "last_name": f"Test{i}",
                         },
                     )
