@@ -1,30 +1,28 @@
 import os
 from pathlib import Path
+
 import dj_database_url
 from dotenv import load_dotenv
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 PROJECT_ROOT = BASE_DIR.parent
 
 load_dotenv(PROJECT_ROOT / ".env")
+
+print(f"BASE_DIR = {BASE_DIR}")
+print(f"PROJECT_ROOT = {PROJECT_ROOT}")
+print(f"ENV = {PROJECT_ROOT / '.env'}")
+print(f"Exists = {(PROJECT_ROOT / '.env').exists()}")
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY environment variable is not set.")
 
-DEBUG = os.getenv("DEBUG", "False").lower() == "true"
-
-_allowed = os.environ.get("ALLOWED_HOSTS", "*")
-
 ALLOWED_HOSTS = os.getenv(
     "ALLOWED_HOSTS",
     "localhost,127.0.0.1"
 ).split(",")
-
-ASGI_APPLICATION = "volunteer.asgi.application"
-CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
-
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -52,7 +50,7 @@ ROOT_URLCONF = "volunteer.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -100,13 +98,9 @@ STATIC_URL = "/static/"
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, "static"),
+STATIC_DIR = BASE_DIR / "static"
 
-] if os.path.isdir(os.path.join(BASE_DIR, "static")) else []
-
-if not DEBUG:
-    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STATICFILES_DIRS = [STATIC_DIR] if STATIC_DIR.exists() else []
 
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_AGE = 86400
