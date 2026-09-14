@@ -130,12 +130,18 @@
   </div>
 </div>
 
+{{ chart_labels|json_script:"chart-labels-data" }}
+{{ chart_approved|json_script:"chart-approved-data" }}
+{{ chart_completed|json_script:"chart-completed-data" }}
+{{ chart_ratings|json_script:"chart-ratings-data" }}
+{{ chart_rating_dist|json_script:"chart-rating-dist-data" }}
+
 <script>
-const labels = {{ chart_labels|safe }};
-const approved = {{ chart_approved|safe }};
-const completed = {{ chart_completed|safe }};
-const ratings = {{ chart_ratings|safe }};
-const ratingDist = {{ chart_rating_dist|safe }};
+const labels = JSON.parse(document.getElementById('chart-labels-data').textContent);
+const approved = JSON.parse(document.getElementById('chart-approved-data').textContent);
+const completed = JSON.parse(document.getElementById('chart-completed-data').textContent);
+const ratings = JSON.parse(document.getElementById('chart-ratings-data').textContent);
+const ratingDist = JSON.parse(document.getElementById('chart-rating-dist-data').textContent);
 
 const commonOpts = { responsive: true, plugins: { legend: { position: 'bottom' } } };
 

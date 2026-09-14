@@ -87,6 +87,17 @@ class CustomUserAdmin(UserAdmin):
         ),
     )
 
+    def get_inline_instances(self, request, obj=None):
+        # UserProfile is auto-created by a post_save signal on User. Skip the
+        # inline on the "add user" page (obj is None): the inline formset
+        # would try to INSERT its own UserProfile for the not-yet-existing
+        # user in the same request, racing the signal's INSERT and violating
+        # the UserProfile.user unique constraint. Once the user exists, the
+        # inline binds to the profile the signal already created.
+        if obj is None:
+            return []
+        return super().get_inline_instances(request, obj)
+
     def get_role(self, instance):
         return instance.profile.role if hasattr(instance, "profile") else None
 

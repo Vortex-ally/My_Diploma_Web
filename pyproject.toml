@@ -22,6 +22,9 @@ exclude = [
     "*/migrations/*",
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"volunteer/volunteer/settings/*.py" = ["F405"] # names come from `from .base import *`
+
 [tool.ruff.format]
 
 [tool.isort]
@@ -31,7 +34,7 @@ skip_glob = [
 ]
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "volunteer.settings.development"
+DJANGO_SETTINGS_MODULE = "volunteer.settings.testing"
 
 python_files = [
     "tests.py",

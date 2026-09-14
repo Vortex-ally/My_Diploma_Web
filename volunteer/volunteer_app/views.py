@@ -64,6 +64,49 @@ def extract_course(group_name):
     return None
 
 
+def _can_manage_project(user, project):
+    """Return True if `user` may manage/view applicants of this Project.
+
+    True for superusers, admins, and the project's own organiser only.
+    Ownership is checked against the actual owning project, never against a
+    caller-supplied id, so it cannot be bypassed by changing project_id.
+    """
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    profile = getattr(user, "profile", None)
+    if profile is not None and profile.role == "admin":
+        return True
+    return project.organiser_id == user.id
+
+
+def _can_manage_request(user, req):
+    """Return True if `user` may approve/reject/complete this volunteer Request.
+
+    Ownership is checked against the actual owning project (req.event.organiser),
+    never against a caller-supplied id, so it cannot be bypassed by changing
+    request_id/event_id/project_id in the request.
+    """
+    return _can_manage_project(user, req.event)
+
+
+def _try_reserve_volunteer_slot(project):
+    """Atomically claim one approved-volunteer slot on `project`.
+
+    Returns True if a slot was reserved (or the project has no cap, i.e.
+    max_volunteers == 0), False if the project is already at capacity.
+    The check-and-increment happens in a single conditional UPDATE so two
+    concurrent approvals can never both succeed past the limit.
+    """
+    if project.max_volunteers <= 0:
+        return True
+    updated = Project.objects.filter(
+        id=project.id, current_volunteers__lt=F("max_volunteers")
+    ).update(current_volunteers=F("current_volunteers") + 1)
+    return updated > 0
+
+
 def _calculate_volunteer_hours(user):
     """Return total approved/completed volunteer hours for a user."""
     total = 0
@@ -543,6 +586,9 @@ def api_my_applications(request):
 def api_project_applications(request, project_id):
     if request.method == "GET":
         project = get_object_or_404(Project, id=project_id)
+        if not _can_manage_project(request.user, project):
+            status = 401 if not request.user.is_authenticated else 403
+            return JsonResponse({"message": "Немає доступу"}, status=status)
         apps = Request.objects.filter(event=project)
         data = [
             {
@@ -559,8 +605,6 @@ def api_project_applications(request, project_id):
 
     if request.method == "PUT" and request.user.is_authenticated:
         project = get_object_or_404(Project, id=project_id)
-        if project.organiser != request.user:
-            return JsonResponse({"message": "Немає доступу"}, status=403)
 
         try:
             data = json.loads(request.body)
@@ -568,15 +612,21 @@ def api_project_applications(request, project_id):
             action = data.get("action")
 
             req = get_object_or_404(Request, id=app_id)
+            if req.event_id != project.id:
+                return JsonResponse(
+                    {"message": "Заявка не належить цьому проєкту"}, status=400
+                )
+            if not _can_manage_request(request.user, req):
+                return JsonResponse({"message": "Немає доступу"}, status=403)
             old_status = req.status
 
             if action == "approve":
+                if old_status != "approved" and not _try_reserve_volunteer_slot(
+                    project
+                ):
+                    return JsonResponse({"message": "Немає вільних місць"}, status=400)
                 req.status = "approved"
                 req.save()
-                if old_status != "approved" and project.max_volunteers > 0:
-                    Project.objects.filter(id=project.id).update(
-                        current_volunteers=F("current_volunteers") + 1
-                    )
             elif action == "reject":
                 req.status = "rejected"
                 req.save()
@@ -1092,7 +1142,6 @@ def landing(request):
     return render(request, "volunteer_app/landing.html")
 
 
-@csrf_exempt
 def login_view(request):
     if request.user.is_authenticated:
         return redirect("dashboard")
@@ -1218,20 +1267,21 @@ def manage_request(request, request_id, action):
     req = get_object_or_404(Request, id=request_id)
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
-    if not (
-        request.user.is_superuser
-        or (
-            hasattr(request.user, "profile")
-            and request.user.profile.role in ["organiser", "admin"]
-        )
-    ):
+    if not _can_manage_request(request.user, req):
         if is_ajax:
             return JsonResponse({"ok": False, "message": "Немає доступу"}, status=403)
+        messages.error(request, "У вас немає доступу до цієї заявки")
         return redirect("dashboard")
 
     old_status = req.status
     msg = ""
     if action == "approve":
+        if old_status != "approved" and not _try_reserve_volunteer_slot(req.event):
+            msg = "Немає вільних місць на цю подію"
+            if is_ajax:
+                return JsonResponse({"ok": False, "message": msg}, status=400)
+            messages.error(request, msg)
+            return redirect("dashboard")
         req.status = "approved"
         msg = f"Заявку від {req.Volunteer.username} схвалено"
         if not is_ajax:
@@ -1259,11 +1309,7 @@ def manage_request(request, request_id, action):
 
     req.save()
     project = req.event
-    if action == "approve" and old_status != "approved" and project.max_volunteers > 0:
-        Project.objects.filter(id=project.id).update(
-            current_volunteers=F("current_volunteers") + 1
-        )
-    elif action == "reject" and old_status == "approved" and project.max_volunteers > 0:
+    if action == "reject" and old_status == "approved" and project.max_volunteers > 0:
         Project.objects.filter(id=project.id, current_volunteers__gt=0).update(
             current_volunteers=F("current_volunteers") - 1
         )
@@ -2216,11 +2262,14 @@ def analytics_dashboard(request):
 
     context = {
         "project_stats": project_stats,
-        "chart_labels": json.dumps(labels, ensure_ascii=False),
-        "chart_approved": json.dumps(approved_data),
-        "chart_completed": json.dumps(completed_data),
-        "chart_ratings": json.dumps(ratings_data),
-        "chart_rating_dist": json.dumps(rating_dist),
+        # Raw Python values -- rendered safely in the template via the
+        # `json_script` filter, which HTML-escapes </script>-breakout
+        # characters. Do NOT pre-serialize with json.dumps()+|safe here.
+        "chart_labels": labels,
+        "chart_approved": approved_data,
+        "chart_completed": completed_data,
+        "chart_ratings": ratings_data,
+        "chart_rating_dist": rating_dist,
         "total_projects": projects.count(),
         "total_volunteers": Request.objects.filter(
             event__in=projects, status__in=["approved", "completed"]

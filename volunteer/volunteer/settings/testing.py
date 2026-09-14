@@ -1,4 +1,4 @@
-from . import base
+from .base import *
 
 DEBUG = False
 
@@ -7,7 +7,7 @@ SECRET_KEY = "testing-secret-key"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": base.BASE_DIR / "test.sqlite3",
+        "NAME": BASE_DIR / "test.sqlite3",
     }
 }
 
