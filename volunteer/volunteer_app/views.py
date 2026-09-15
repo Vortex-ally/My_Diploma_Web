@@ -220,15 +220,19 @@ def _volunteer_dashboard_ctx(user):
         ),
     }
 
+    current_hours = _calculate_volunteer_hours(user)
     try:
-        goal = VolunteerGoal.objects.get(volunteer=user)
-        context["volunteer_goal"] = goal
-        context["progress_percent"] = goal.get_progress_percentage()
+        target = VolunteerGoal.objects.get(volunteer=user).target_hours
     except VolunteerGoal.DoesNotExist:
         course = extract_course(user.profile.group_name)
         target = 10 if course == 1 else 20
-        context["volunteer_goal"] = {"target_hours": target, "current_hours": 0}
-        context["progress_percent"] = 0
+    context["volunteer_goal"] = {
+        "target_hours": target,
+        "current_hours": current_hours,
+    }
+    context["progress_percent"] = (
+        min(100, (current_hours / target) * 100) if target else 100
+    )
 
     if has_premium:
         approved_reqs = Request.objects.filter(status="approved").select_related(
